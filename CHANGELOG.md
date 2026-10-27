@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/joutio/joutio-identity/compare/v1.0.0...v1.0.1) (2026-10-27)
+
+### Bug Fixes
+
+* remove legacy OAuth app defaults ([08b4af8](https://github.com/joutio/joutio-identity/commit/08b4af8a7f1019aec5bb55fe77d623ca311fae10))
+
 ## 1.0.0 (2026-10-27)
 
 ### Features
