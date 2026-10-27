@@ -1,0 +1,183 @@
+spring:
+  config:
+    import: optional:classpath:joutio-defaults.yml
+  profiles:
+    default: local
+
+  application:
+    name: joutio-identity
+
+  flyway:
+    locations: classpath:db/migration/identity
+
+  security:
+    oauth2:
+      # Clients sortants de login social.
+      client:
+        registration:
+          google:
+            client-id: ${JOUTIO_OAUTH2_GOOGLE_CLIENT_ID:270229696016-9u3916ckfcludqv77uiebgir65j3eurk.apps.googleusercontent.com}
+            client-secret: ${JOUTIO_OAUTH2_GOOGLE_SECRET}
+            scope:
+              - openid
+              - profile
+              - email
+          # Facebook Login « classique » (OAuth2 + Graph API, pas OIDC).
+          # La version Graph est alignée sur la version courante de l'API Meta.
+          facebook:
+            # App ID public (Meta) : un défaut évite d'empêcher le démarrage local.
+            client-id: ${JOUTIO_OAUTH2_FACEBOOK_CLIENT_ID:2122240041993058}
+            client-secret: ${JOUTIO_OAUTH2_FACEBOOK_SECRET:}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            scope:
+              - public_profile
+              - email
+        provider:
+          facebook:
+            authorization-uri: https://www.facebook.com/v26.0/dialog/oauth
+            token-uri: https://graph.facebook.com/v26.0/oauth/access_token
+            user-info-uri: "https://graph.facebook.com/v26.0/me?fields=id,name,email,picture"
+            user-name-attribute: id
+      # Clients entrants du serveur d'autorisation (standard Spring Boot).
+      # Les redirect URIs sont définies par profil (application-local/-prod.yml).
+      authorizationserver:
+        issuer: ${JOUTIO_IDENTITY_ISSUER:http://localhost:8085}
+        client:
+          # Client credentials M2M (machine-to-machine).
+          server:
+            registration:
+              client-id: server
+              client-secret: ${JOUTIO_IDENTITY_SERVER_CLIENT_SECRET:server-secret}
+              client-authentication-methods: [ client_secret_basic ]
+              authorization-grant-types: [ client_credentials ]
+              scopes: [ openid, profile, read, write ]
+            token:
+              access-token-time-to-live: PT1H
+              refresh-token-time-to-live: PT24H
+              reuse-refresh-tokens: false
+
+          # Client web (SPA).
+          web:
+            registration:
+              client-id: web
+              client-authentication-methods: [ none ]
+              authorization-grant-types: [ authorization_code, refresh_token ]
+              scopes: [ openid, profile, email ]
+            require-proof-key: true
+            token: &token-web-mobile { access-token-time-to-live: PT1H, refresh-token-time-to-live: P365D, reuse-refresh-tokens: false }
+
+          # Client mobile (Expo).
+          mobile:
+            registration:
+              client-id: mobile
+              client-authentication-methods: [ none ]
+              authorization-grant-types: [ authorization_code, refresh_token ]
+              scopes: [ openid, profile, email ]
+            require-proof-key: true
+            token: *token-web-mobile
+
+          # Client console d'exploitation (SPA admin « joutio-web-console »).
+          console:
+            registration:
+              client-id: console
+              client-authentication-methods: [ none ]
+              authorization-grant-types: [ authorization_code, refresh_token ]
+              scopes: [ openid, profile, email ]
+            require-proof-key: true
+            token: *token-web-mobile
+
+          # Client Grafana (observabilité) — confidentiel (client_secret_basic + PKCE).
+          grafana:
+            registration:
+              client-id: grafana
+              client-secret: ${JOUTIO_GRAFANA_CLIENT_SECRET:}
+              client-authentication-methods: [ client_secret_basic ]
+              authorization-grant-types: [ authorization_code, refresh_token ]
+              scopes: [ openid, profile, email ]
+            require-proof-key: true
+            token:
+              access-token-time-to-live: PT4H
+              refresh-token-time-to-live: P30D
+              reuse-refresh-tokens: false
+
+          # Client ArgoCD (GitOps) — confidentiel (client_secret_basic + PKCE).
+          argocd:
+            registration:
+              client-id: argocd
+              client-secret: ${JOUTIO_ARGOCD_CLIENT_SECRET:}
+              client-authentication-methods: [ client_secret_basic ]
+              authorization-grant-types: [ authorization_code, refresh_token ]
+              scopes: [ openid, profile, email ]
+            require-proof-key: true
+            token:
+              access-token-time-to-live: PT4H
+              refresh-token-time-to-live: P30D
+              reuse-refresh-tokens: false
+
+          # Client Swagger UI (Authorization Code, sans refresh token).
+          swagger:
+            registration:
+              client-id: swagger
+              client-authentication-methods: [ none ]
+              authorization-grant-types: [ authorization_code ]
+              scopes: [ openid, profile ]
+            require-proof-key: true
+            token:
+              access-token-time-to-live: PT1H
+              reuse-refresh-tokens: false
+
+joutio:
+  account-suspension:
+    # Intervalle du balayeur de fins de suspension temporaire (millisecondes).
+    sweep-interval-ms: 60000
+
+app:
+  auth:
+    # Surface d'authentification native mobile (OTP + Google).
+    mobile:
+      client-id: ${JOUTIO_MOBILE_CLIENT_ID:mobile}
+      # Client OAuth2 « Web » Google : audience des ID tokens émis par le SDK natif.
+      google-client-id: ${JOUTIO_OAUTH2_GOOGLE_CLIENT_ID:270229696016-9u3916ckfcludqv77uiebgir65j3eurk.apps.googleusercontent.com}
+      # App ID Facebook : audience des ID tokens Limited Login (iOS) et des
+      # access tokens vérifiés côté serveur (Android).
+      facebook-app-id: ${JOUTIO_OAUTH2_FACEBOOK_CLIENT_ID:2122240041993058}
+  # Seed par défaut : compte système (identity), profil système (profile), sujets starters (theme).
+  seed-data:
+    enabled: true
+  authorization-server:
+    audience: ${JOUTIO_IDENTITY_AUDIENCE:}
+    # Liste blanche d'emails obtenant ROLE_ADMIN (consommé par Grafana via role_attribute_path).
+    admin-emails: ${JOUTIO_ADMIN_EMAILS:}
+  mail:
+    api-key: ${JOUTIO_MAIL_API_KEY:}
+    from: ${JOUTIO_MAIL_FROM:Joutio <no-reply@joutio.com>}
+    base-url: ${JOUTIO_MAIL_BASE_URL:https://api.resend.com}
+  jwk:
+    jwk-set: ${JOUTIO_IDENTITY_JWK:}
+  security:
+    login-page-uri: ${JOUTIO_APP_LOGIN_URI:http://localhost:5173/login}
+    oauth2:
+      success-redirect-uri: ${JOUTIO_APP_OAUTH2_SUCCESS_URI:http://localhost:5173/login?social=success}
+      failure-redirect-uri: ${JOUTIO_APP_OAUTH2_FAILURE_URI:http://localhost:5173/login?error}
+    cors:
+      allowed-origins: ${JOUTIO_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:8081}
+    session:
+      cookie-same-site: ${JOUTIO_SESSION_COOKIE_SAME_SITE:Lax}
+      cookie-secure: ${JOUTIO_SESSION_COOKIE_SECURE:false}
+
+microservice:
+  resource-server:
+    enabled: false
+  cors:
+    enabled: false
+  swagger:
+    enabled: true
+    description: Joutio Identity Module - User authentication, authorization, and client management
+    use-root-path: true
+    show-oauth2-endpoints: true
+
+# Topic dédié au nouveau stack : isole les événements Joutio de l'ancien topic Axon.
+axon:
+  kafka:
+    default-topic: joutio-events

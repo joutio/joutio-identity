@@ -1,0 +1,86 @@
+server:
+  port: 8085
+
+spring:
+  config:
+    import: optional:classpath:joutio-local.yml
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/joutio_identity
+    username: postgres
+    password: postgres
+
+  security:
+    oauth2:
+      authorizationserver:
+        client:
+          web:
+            registration:
+              redirect-uris:
+                - http://localhost:3000/callback
+                - http://localhost:3000/auth/callback
+                - http://localhost:5173/callback
+                - http://localhost:5174/callback
+                - http://localhost:5175/callback
+                - http://localhost:4200/callback
+              post-logout-redirect-uris:
+                - http://localhost:3000
+                - http://localhost:5173
+                - http://localhost:5174
+                - http://localhost:5175
+                - http://localhost:4200
+          mobile:
+            registration:
+              redirect-uris:
+                - joutio://callback
+                - exp://127.0.0.1:8081/--/callback
+                - http://localhost:8081/callback
+              post-logout-redirect-uris:
+                - joutio://callback
+                - exp://127.0.0.1:8081/--/
+                - http://localhost:8081
+          console:
+            registration:
+              redirect-uris:
+                - http://localhost:5174/callback
+              post-logout-redirect-uris:
+                - http://localhost:5174
+          grafana:
+            registration:
+              redirect-uris:
+                - http://localhost:3000/login/generic_oauth
+              post-logout-redirect-uris:
+                - http://localhost:3000
+          argocd:
+            registration:
+              redirect-uris:
+                - http://localhost:8080/auth/callback
+              post-logout-redirect-uris:
+                - http://localhost:8080
+          swagger:
+            registration:
+              redirect-uris:
+                - http://localhost:8080/swagger-ui/oauth2-redirect.html
+                - http://localhost:8080/webjars/swagger-ui/oauth2-redirect.html
+                - http://localhost:8081/swagger-ui/oauth2-redirect.html
+                - http://localhost:8082/swagger-ui/oauth2-redirect.html
+                - http://localhost:8083/swagger-ui/oauth2-redirect.html
+                - http://localhost:8084/swagger-ui/oauth2-redirect.html
+                - http://localhost:8085/swagger-ui/oauth2-redirect.html
+                - http://localhost:8086/swagger-ui/oauth2-redirect.html
+                - http://localhost:8087/swagger-ui/oauth2-redirect.html
+                - http://localhost:8088/swagger-ui/oauth2-redirect.html
+                - http://localhost:8090/swagger-ui/oauth2-redirect.html
+                - http://localhost:8091/swagger-ui/oauth2-redirect.html
+
+app:
+  seed-data:
+    enabled: true
+  auth:
+    # Dev/E2E uniquement : code de connexion fixe (jamais en prod).
+    dev-fixed-code: "000000"
+  jwk:
+    # Dev uniquement : génère une clé éphémère si JOUTIO_IDENTITY_JWK est absent.
+    generate-if-missing: true

@@ -1,0 +1,72 @@
+server:
+  port: 8080
+
+spring:
+  config:
+    import: optional:classpath:joutio-prod.yml
+    activate:
+      on-profile: prod
+
+  security:
+    oauth2:
+      authorizationserver:
+        client:
+          web:
+            registration:
+              redirect-uris:
+                - https://app.joutio.local/callback
+                - https://app.joutio.com/callback
+              post-logout-redirect-uris:
+                - https://app.joutio.local
+                - https://app.joutio.com
+          mobile:
+            registration:
+              redirect-uris:
+                - joutio://callback
+              post-logout-redirect-uris:
+                - joutio://callback
+          console:
+            registration:
+              redirect-uris:
+                - https://console.joutio.local/callback
+                - https://console.joutio.com/callback
+              post-logout-redirect-uris:
+                - https://console.joutio.local
+                - https://console.joutio.com
+          grafana:
+            registration:
+              redirect-uris:
+                - https://grafana.joutio.com/login/generic_oauth
+              post-logout-redirect-uris:
+                - https://grafana.joutio.com
+          argocd:
+            registration:
+              redirect-uris:
+                - https://argocd.joutio.com/auth/callback
+              post-logout-redirect-uris:
+                - https://argocd.joutio.com
+          swagger:
+            registration:
+              redirect-uris:
+                - https://api.joutio.com/swagger-ui/oauth2-redirect.html
+                - https://api.joutio.com/webjars/swagger-ui/oauth2-redirect.html
+
+app:
+  seed-data:
+    enabled: ${JOUTIO_SEED_DATA_ENABLED:true}
+  security:
+    login-page-uri: ${JOUTIO_APP_LOGIN_URI:https://app.joutio.local/login}
+    oauth2:
+      success-redirect-uri: ${JOUTIO_APP_OAUTH2_SUCCESS_URI:https://app.joutio.local/login?social=success}
+      failure-redirect-uri: ${JOUTIO_APP_OAUTH2_FAILURE_URI:https://app.joutio.local/login?error}
+    cors:
+      allowed-origins: ${JOUTIO_CORS_ALLOWED_ORIGINS:https://app.joutio.local}
+    session:
+      cookie-secure: ${JOUTIO_SESSION_COOKIE_SECURE:true}
+      cookie-same-site: Lax
+
+microservice:
+  swagger:
+    oauth2:
+      # Identity expose son propre issuer public (surcharge le défaut partagé).
+      authorization-server-url: ${JOUTIO_IDENTITY_ISSUER:https://identity.joutio.local}

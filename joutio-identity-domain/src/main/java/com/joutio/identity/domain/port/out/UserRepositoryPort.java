@@ -1,0 +1,71 @@
+package com.joutio.identity.domain.port.out;
+
+import com.joutio.microservice.core.infrastructure.in.api.request.SearchRequest;
+import com.joutio.microservice.core.infrastructure.in.api.response.SearchResponse;
+import com.joutio.identity.domain.model.User;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Port sortant - Lecture des utilisateurs depuis la persistence.
+ */
+public interface UserRepositoryPort {
+
+    /**
+     * Persiste un utilisateur (creation ou mise a jour).
+     *
+     * @param user le modèle domaine à persister
+     */
+    void save(User user);
+
+    /**
+     * Trouve un utilisateur par son identifiant.
+     *
+     * @param userId l'identifiant de l'utilisateur
+     * @return l'utilisateur trouve, ou Optional.empty() s'il n'existe pas
+     */
+    Optional<User> findById(String userId);
+
+    /**
+     * Trouve un utilisateur par son email.
+     *
+     * @param email l'email de l'utilisateur
+     * @return l'utilisateur trouve, ou Optional.empty() s'il n'existe pas
+     */
+    Optional<User> findByEmail(String email);
+
+    /**
+     * Résolution en lot (recherche admin, badges publics).
+     */
+    List<User> findAllByIds(List<String> userIds);
+
+    SearchResponse<User> findAll(SearchRequest request);
+
+    /**
+     * Vérifie si un utilisateur existe avec cet email.
+     *
+     * @param email l'email a verifier (non null, non vide)
+     * @return true si un utilisateur avec cet email existe deja
+     */
+    boolean existsByEmail(String email);
+
+    /**
+     * Vérifie si un utilisateur existe avec cet identifiant.
+     *
+     * @param userId l'identifiant a verifier (non null, non vide)
+     * @return true si l'utilisateur existe
+     */
+    boolean existsById(String userId);
+
+    /**
+     * Identifiants des comptes dont la suspension temporaire est échue.
+     */
+    List<String> findExpiredSuspensionIds(Instant now, int limit);
+
+    /**
+     * Compte les comptes effectivement suspendus à l'instant donné.
+     */
+    long countSuspended(Instant now);
+}
