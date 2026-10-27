@@ -1,3 +1,9 @@
+## 1.0.0 (2026-10-27)
+
+### Features
+
+* initial Joutio identity service ([ec86c85](https://github.com/joutio/joutio-identity/commit/ec86c85d486ecdbb7617767cfe67460c0ab09885))
+
 ## [2.12.0](https://github.com/joutio/joutio-identity/compare/v2.11.0...v2.12.0) (2026-10-22)
 
 ### Features
