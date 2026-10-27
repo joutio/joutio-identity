@@ -16,7 +16,7 @@ spring:
       client:
         registration:
           google:
-            client-id: ${JOUTIO_OAUTH2_GOOGLE_CLIENT_ID:270229696016-9u3916ckfcludqv77uiebgir65j3eurk.apps.googleusercontent.com}
+            client-id: ${JOUTIO_OAUTH2_GOOGLE_CLIENT_ID:joutio-google-client-id}
             client-secret: ${JOUTIO_OAUTH2_GOOGLE_SECRET}
             scope:
               - openid
@@ -26,7 +26,7 @@ spring:
           # La version Graph est alignée sur la version courante de l'API Meta.
           facebook:
             # App ID public (Meta) : un défaut évite d'empêcher le démarrage local.
-            client-id: ${JOUTIO_OAUTH2_FACEBOOK_CLIENT_ID:2122240041993058}
+            client-id: ${JOUTIO_OAUTH2_FACEBOOK_CLIENT_ID:joutio-facebook-app-id}
             client-secret: ${JOUTIO_OAUTH2_FACEBOOK_SECRET:}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
@@ -138,10 +138,10 @@ app:
     mobile:
       client-id: ${JOUTIO_MOBILE_CLIENT_ID:mobile}
       # Client OAuth2 « Web » Google : audience des ID tokens émis par le SDK natif.
-      google-client-id: ${JOUTIO_OAUTH2_GOOGLE_CLIENT_ID:270229696016-9u3916ckfcludqv77uiebgir65j3eurk.apps.googleusercontent.com}
+      google-client-id: ${JOUTIO_OAUTH2_GOOGLE_CLIENT_ID:joutio-google-client-id}
       # App ID Facebook : audience des ID tokens Limited Login (iOS) et des
       # access tokens vérifiés côté serveur (Android).
-      facebook-app-id: ${JOUTIO_OAUTH2_FACEBOOK_CLIENT_ID:2122240041993058}
+      facebook-app-id: ${JOUTIO_OAUTH2_FACEBOOK_CLIENT_ID:joutio-facebook-app-id}
   # Seed par défaut : compte système (identity), profil système (profile), sujets starters (theme).
   seed-data:
     enabled: true
