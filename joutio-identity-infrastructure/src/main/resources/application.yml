@@ -177,7 +177,8 @@ microservice:
     use-root-path: true
     show-oauth2-endpoints: true
 
-# Topic dédié au nouveau stack : isole les événements Joutio de l'ancien topic Axon.
+# Topic Axon commun à tous les services (défaut SDK) : doit rester aligné avec
+# `AXON_KAFKA_DEFAULT_TOPIC` du ConfigMap `joutio-common-config`.
 axon:
   kafka:
-    default-topic: joutio-events
+    default-topic: Axon.Events
