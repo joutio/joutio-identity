@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.security.Principal;
 import java.time.Duration;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -78,9 +79,12 @@ public class NativeTokenIssuer {
             throw new IllegalStateException("Native token issuance requires refresh_token grant: " + clientId);
         }
 
+        // Ensemble ordinaire, jamais `toUnmodifiableSet()` : `JwtGenerator` recopie ces scopes dans le claim `scope`,
+        // stocké avec l'autorisation (`access_token_metadata`) ; au refresh, l'allowlist Jackson de Spring Security
+        // refuse `ImmutableCollections$Set12/SetN` et `/oauth2/token` répond 500.
         Set<String> scopes = client.getScopes().stream()
                 .filter(scope -> !OidcScopes.OPENID.equals(scope))
-                .collect(Collectors.toUnmodifiableSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
         String principalName = principal.getPrincipal() instanceof JoutioPrincipal joutioPrincipal
                 ? joutioPrincipal.getUserId()

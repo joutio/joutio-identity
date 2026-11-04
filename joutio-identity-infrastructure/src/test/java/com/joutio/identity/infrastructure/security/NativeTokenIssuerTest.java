@@ -112,4 +112,49 @@ class NativeTokenIssuerTest {
         Object principalAttribute = authorization.getAttribute(Principal.class.getName());
         assertThat(principalAttribute).isSameAs(authentication);
     }
+
+    /**
+     * Régression : les scopes passés au générateur finissent dans le claim `scope`, stocké avec l'autorisation et
+     * relu au refresh. Ils doivent passer l'allowlist Jackson du stockage JDBC (sinon `/oauth2/token` répond 500).
+     */
+    @Test
+    void authorizedScopesSurviveTheJdbcRoundTripUsedByRefresh() throws Exception {
+        RegisteredClientRepository clients = mock(RegisteredClientRepository.class);
+        OAuth2TokenGenerator<?> generator = mock(OAuth2TokenGenerator.class);
+        RegisteredClient mobile = RegisteredClient.withId("mobile-id")
+                .clientId("mobile")
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .redirectUri("joutio://callback")
+                .scope("openid")
+                .scope("profile")
+                .scope("email")
+                .build();
+        when(clients.findByClientId("mobile")).thenReturn(mobile);
+
+        Instant now = Instant.now();
+        java.util.concurrent.atomic.AtomicReference<Object> scopes = new java.util.concurrent.atomic.AtomicReference<>();
+        when(generator.generate(any(OAuth2TokenContext.class))).thenAnswer(invocation -> {
+            OAuth2TokenContext context = invocation.getArgument(0);
+            if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
+                scopes.set(context.getAuthorizedScopes());
+                return Jwt.withTokenValue("access-token").header("alg", "RS256").subject("user-1")
+                        .issuedAt(now).expiresAt(now.plusSeconds(3600))
+                        .claim("scope", context.getAuthorizedScopes()).build();
+            }
+            return new OAuth2RefreshToken("refresh-token", now, now.plus(Duration.ofDays(365)));
+        });
+        NativeTokenIssuer issuer = new NativeTokenIssuer(clients, generator, mock(OAuth2AuthorizationService.class),
+                AuthorizationServerSettings.builder().issuer("http://localhost:8085").build());
+        UserPrincipal user = new UserPrincipal("user-1", "player@example.com", List.of(new SimpleGrantedAuthority("ROLE_USER")));
+
+        issuer.issue(UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities()), "mobile");
+
+        com.fasterxml.jackson.databind.ObjectMapper mapper = OAuth2AuthorizationObjectMapper.create();
+        java.util.Map<String, Object> metadata = java.util.Map.of("metadata.token.claims", new java.util.HashMap<>(java.util.Map.of("scope", scopes.get())));
+        String json = mapper.writeValueAsString(new java.util.HashMap<>(metadata));
+        java.util.Map<String, Object> back = mapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        assertThat(back).containsKey("metadata.token.claims");
+    }
 }
