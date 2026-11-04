@@ -1,3 +1,9 @@
+## [1.0.3](https://github.com/joutio/joutio-identity/compare/v1.0.2...v1.0.3) (2026-11-04)
+
+### Bug Fixes
+
+* **auth:** refresh of native mobile sessions answered 500 ([caeeece](https://github.com/joutio/joutio-identity/commit/caeeecefdc60e40c828d285ced7df771802c19cc))
+
 ## [1.0.2](https://github.com/joutio/joutio-identity/compare/v1.0.1...v1.0.2) (2026-10-27)
 
 ### Bug Fixes
