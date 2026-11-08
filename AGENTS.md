@@ -225,3 +225,10 @@ doit être déployé **avant** le BFF qui émet ces filtres.
 | `app.security.cors.allowed-origins` | Origine SPA (credentials) |
 | `app.security.session.cookie-*` | Cookie `AUTH_TX` (name/same-site/secure) |
 | `spring.security.oauth2.authorizationserver.client.{web,mobile}.token` | Tokens des clients SPA/mobile : access `PT1H`, refresh **`P365D`** (sessions longues), rotation `reuse-refresh-tokens: false` — clients construits en mémoire au démarrage (rollout image suffisant) |
+
+### Droits effectifs (équipes de sujets)
+
+`UserQuery.GetUserEntitlementsQuery(userId)` retourne `UserEntitlements(userId,premium)` sur le bus.
+Le port `UserEntitlementsPort` est adapté par la même attribution `Roles.forUser` que les sessions.
+Un compte suspendu n'a pas de droit Premium effectif. Le BFF vérifie ainsi le propriétaire et les
+administrateurs de sujets sans accepter des droits fournis par le mobile. Le paiement reste hors périmètre.
