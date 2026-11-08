@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/joutio/joutio-identity/compare/v1.0.3...v1.1.0) (2026-11-08)
+
+### Features
+
+* **identity:** expose effective Premium entitlements ([00205df](https://github.com/joutio/joutio-identity/commit/00205df99cd3cbc2fcef799d5c55afb287e87bab))
+
 ## [1.0.3](https://github.com/joutio/joutio-identity/compare/v1.0.2...v1.0.3) (2026-11-04)
 
 ### Bug Fixes
