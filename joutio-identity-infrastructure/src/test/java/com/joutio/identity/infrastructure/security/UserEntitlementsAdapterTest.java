@@ -65,6 +65,16 @@ class UserEntitlementsAdapterTest {
         verifyNoInteractions(roles);
     }
 
+    /** Deux constructeurs : Spring doit savoir lequel injecter (sinon « No default constructor found »). */
+    @Test
+    void springConstructorIsDesignated() {
+        long designated = Arrays.stream(UserEntitlementsAdapter.class.getDeclaredConstructors())
+                .filter(constructor -> constructor.isAnnotationPresent(
+                        org.springframework.beans.factory.annotation.Autowired.class))
+                .count();
+        assertThat(designated).isEqualTo(1);
+    }
+
     private void stub(User user) {
         when(users.findById("user")).thenReturn(Optional.of(user));
     }
