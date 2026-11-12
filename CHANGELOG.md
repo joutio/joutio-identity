@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/joutio/joutio-identity/compare/v1.1.0...v1.2.0) (2026-11-12)
+
+### Features
+
+* **identity:** carry Premium entitlement in UserAggregate ([cff7c73](https://github.com/joutio/joutio-identity/commit/cff7c73871f5b39e81ac54a15864c41a318501ef))
+
 ## [1.1.0](https://github.com/joutio/joutio-identity/compare/v1.0.3...v1.1.0) (2026-11-08)
 
 ### Features
