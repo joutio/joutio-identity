@@ -1,3 +1,9 @@
+## [1.2.2](https://github.com/joutio/joutio-identity/compare/v1.2.1...v1.2.2) (2026-11-12)
+
+### Bug Fixes
+
+* **identity:** guard the injectable entitlements constructor ([e1bdb57](https://github.com/joutio/joutio-identity/commit/e1bdb57466768b5b3f4a82e6fa8792ff1ae8682b))
+
 ## [1.2.1](https://github.com/joutio/joutio-identity/compare/v1.2.0...v1.2.1) (2026-11-12)
 
 ### Bug Fixes
