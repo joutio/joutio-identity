@@ -6,6 +6,7 @@ import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.port.out.UserEntitlementsPort;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -21,6 +22,7 @@ public class UserEntitlementsAdapter implements UserEntitlementsPort {
     private final Roles roles;
     private final Clock clock;
 
+    @Autowired
     public UserEntitlementsAdapter(UserRepositoryPort users, Roles roles) {
         this(users, roles, Clock.systemUTC());
     }
