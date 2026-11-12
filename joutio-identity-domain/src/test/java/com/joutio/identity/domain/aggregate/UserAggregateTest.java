@@ -4,6 +4,8 @@ import com.joutio.axon.test.JoutioAxonMatchers;
 import com.joutio.identity.domain.command.UserCommand;
 import com.joutio.identity.domain.event.UserEvent;
 import com.joutio.identity.domain.exception.UserProblems;
+import com.joutio.identity.domain.exception.PremiumProblems;
+import com.joutio.identity.domain.model.PremiumSource;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.SuspensionReinstatementReason;
 import com.joutio.identity.domain.model.UserSuspensionReason;
@@ -241,6 +243,140 @@ class UserAggregateTest {
                         "user-8", SuspensionReinstatementReason.MANUAL, null,
                         "admin-1", Instant.parse("2026-01-20T00:00:00Z")))
                 .expectNoEvents();
+    }
+
+    private static final Instant GRANTED_AT = Instant.parse("2026-01-10T00:00:00Z");
+    private static final Instant PREMIUM_UNTIL = Instant.parse("2026-02-10T00:00:00Z");
+
+    @Test
+    void grantPremium_appliesGrantedEvent() {
+        fixture.given(registered())
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, PREMIUM_UNTIL, "admin-1", GRANTED_AT))
+                .expectEvents(new UserEvent.UserPremiumGrantedEvent(
+                        "user-8", PremiumSource.MANUAL, PREMIUM_UNTIL, "admin-1", GRANTED_AT));
+    }
+
+    @Test
+    void grantPremium_withoutEnd_isPermanent() {
+        fixture.given(registered())
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, null, "admin-1", GRANTED_AT))
+                .expectEvents(new UserEvent.UserPremiumGrantedEvent(
+                        "user-8", PremiumSource.MANUAL, null, "admin-1", GRANTED_AT));
+    }
+
+    @Test
+    void grantPremium_sameActiveGrant_isIdempotent() {
+        fixture.given(registered(), premiumGranted(PREMIUM_UNTIL))
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, PREMIUM_UNTIL, "admin-2",
+                        Instant.parse("2026-01-12T00:00:00Z")))
+                .expectNoEvents();
+    }
+
+    @Test
+    void grantPremium_extension_replacesEnd() {
+        Instant extended = Instant.parse("2026-03-10T00:00:00Z");
+        fixture.given(registered(), premiumGranted(PREMIUM_UNTIL))
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, extended, "admin-1",
+                        Instant.parse("2026-01-12T00:00:00Z")))
+                .expectEvents(new UserEvent.UserPremiumGrantedEvent(
+                        "user-8", PremiumSource.MANUAL, extended, "admin-1",
+                        Instant.parse("2026-01-12T00:00:00Z")));
+    }
+
+    @Test
+    void grantPremium_afterExpiry_grantsAgain() {
+        Instant later = Instant.parse("2026-02-20T00:00:00Z");
+        fixture.given(registered(), premiumGranted(PREMIUM_UNTIL))
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, PREMIUM_UNTIL.plusSeconds(86_400 * 30), "admin-1", later))
+                .expectEventsMatching(JoutioAxonMatchers.singlePayloadMatching(
+                        UserEvent.UserPremiumGrantedEvent.class,
+                        e -> ((UserEvent.UserPremiumGrantedEvent) e).grantedAt().equals(later)));
+    }
+
+    @Test
+    void grantPremium_pastEnd_isRejected() {
+        fixture.given(registered())
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, GRANTED_AT, "admin-1", GRANTED_AT))
+                .expectException(PremiumProblems.InvalidPremiumGrantProblem.class);
+    }
+
+    @Test
+    void grantPremium_withoutSource_isRejected() {
+        fixture.given(registered())
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", null, PREMIUM_UNTIL, "admin-1", GRANTED_AT))
+                .expectException(PremiumProblems.InvalidPremiumGrantProblem.class);
+    }
+
+    @Test
+    void grantPremium_deletedAccount_isRejected() {
+        fixture.given(registered(), new UserAccountDeletedEvent("user-8", "deletion-1", GRANTED_AT))
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, null, "admin-1", GRANTED_AT))
+                .expectException(PremiumProblems.PremiumNotGrantableProblem.class);
+    }
+
+    @Test
+    void grantPremium_systemAccount_isRejected() {
+        fixture.given(new UserEvent.UserRegisteredEvent(
+                        JoutioConstants.SYSTEM_USER_ID, JoutioConstants.SYSTEM_USER_EMAIL, null,
+                        Instant.parse("2026-01-01T00:00:00Z")))
+                .when(new UserCommand.GrantPremiumCommand(
+                        JoutioConstants.SYSTEM_USER_ID, PremiumSource.MANUAL, null, "admin-1", GRANTED_AT))
+                .expectException(PremiumProblems.PremiumNotGrantableProblem.class);
+    }
+
+    @Test
+    void grantPremium_suspendedAccount_isStoredButNotEffective() {
+        // La suspension neutralise le droit à la lecture (PremiumRules.isEffective), pas à l'écriture.
+        fixture.given(registered(), suspended(null))
+                .when(new UserCommand.GrantPremiumCommand(
+                        "user-8", PremiumSource.MANUAL, PREMIUM_UNTIL, "admin-1", GRANTED_AT))
+                .expectEvents(new UserEvent.UserPremiumGrantedEvent(
+                        "user-8", PremiumSource.MANUAL, PREMIUM_UNTIL, "admin-1", GRANTED_AT));
+    }
+
+    @Test
+    void revokePremium_activeGrant_appliesRevokedEvent() {
+        Instant revokedAt = Instant.parse("2026-01-15T00:00:00Z");
+        fixture.given(registered(), premiumGranted(PREMIUM_UNTIL))
+                .when(new UserCommand.RevokePremiumCommand("user-8", "test ended", "admin-1", revokedAt))
+                .expectEvents(new UserEvent.UserPremiumRevokedEvent(
+                        "user-8", PremiumSource.MANUAL, "test ended", "admin-1", revokedAt));
+    }
+
+    @Test
+    void revokePremium_withoutGrant_isNoOp() {
+        fixture.given(registered())
+                .when(new UserCommand.RevokePremiumCommand("user-8", null, "admin-1", GRANTED_AT))
+                .expectNoEvents();
+    }
+
+    @Test
+    void revokePremium_expiredGrant_isNoOp() {
+        fixture.given(registered(), premiumGranted(PREMIUM_UNTIL))
+                .when(new UserCommand.RevokePremiumCommand(
+                        "user-8", null, "admin-1", Instant.parse("2026-03-01T00:00:00Z")))
+                .expectNoEvents();
+    }
+
+    @Test
+    void revokePremium_twice_secondIsNoOp() {
+        Instant revokedAt = Instant.parse("2026-01-15T00:00:00Z");
+        fixture.given(registered(), premiumGranted(PREMIUM_UNTIL),
+                        new UserEvent.UserPremiumRevokedEvent("user-8", PremiumSource.MANUAL, null, "admin-1", revokedAt))
+                .when(new UserCommand.RevokePremiumCommand("user-8", null, "admin-1", revokedAt.plusSeconds(60)))
+                .expectNoEvents();
+    }
+
+    private static UserEvent.UserPremiumGrantedEvent premiumGranted(Instant until) {
+        return new UserEvent.UserPremiumGrantedEvent("user-8", PremiumSource.MANUAL, until, "admin-1", GRANTED_AT);
     }
 
     private static UserEvent.UserRegisteredEvent registered() {

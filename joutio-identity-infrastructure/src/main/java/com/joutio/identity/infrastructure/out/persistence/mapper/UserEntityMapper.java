@@ -2,6 +2,7 @@ package com.joutio.identity.infrastructure.out.persistence.mapper;
 
 import com.joutio.identity.domain.model.AccountStatus;
 import com.joutio.identity.domain.model.User;
+import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.model.UserSuspension;
 import com.joutio.identity.infrastructure.out.persistence.entity.UserEntity;
 
@@ -32,13 +33,22 @@ public final class UserEntityMapper {
                         entity.getReinstatementReason(),
                         entity.getReinstatementNote());
 
+        UserPremium premium = entity.getPremiumSource() == null
+                ? null
+                : new UserPremium(
+                        entity.getPremiumSource(),
+                        entity.getPremiumUntil(),
+                        entity.getPremiumGrantedBy(),
+                        entity.getPremiumGrantedAt());
+
         return new User(
                 entity.getUserId(),
                 entity.getEmail(),
                 entity.getLinkedSocialAccounts(),
                 entity.getCreatedAt(),
                 entity.getStatus() == null ? AccountStatus.ACTIVE : entity.getStatus(),
-                suspension
+                suspension,
+                premium
         );
     }
 
@@ -68,6 +78,14 @@ public final class UserEntityMapper {
             userEntity.setReinstatedBy(suspension.reinstatedBy());
             userEntity.setReinstatementReason(suspension.reinstatementReason());
             userEntity.setReinstatementNote(suspension.reinstatementNote());
+        }
+
+        UserPremium premium = user.premium();
+        if (premium != null) {
+            userEntity.setPremiumSource(premium.source());
+            userEntity.setPremiumUntil(premium.premiumUntil());
+            userEntity.setPremiumGrantedBy(premium.grantedBy());
+            userEntity.setPremiumGrantedAt(premium.grantedAt());
         }
         return userEntity;
     }

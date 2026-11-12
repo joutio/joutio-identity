@@ -2,11 +2,14 @@ package com.joutio.identity.domain.aggregate;
 
 import com.joutio.identity.domain.command.UserCommand;
 import com.joutio.identity.domain.event.UserEvent;
+import com.joutio.identity.domain.exception.PremiumProblems;
 import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.exception.UserReportProblems;
 import com.joutio.identity.domain.model.AccountStatus;
 import com.joutio.identity.domain.model.AccountStatusRules;
+import com.joutio.identity.domain.model.PremiumRules;
 import com.joutio.identity.domain.model.SocialProvider;
+import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.model.UserReportRules;
 import com.joutio.identity.domain.model.UserSuspension;
 import com.joutio.identity.domain.port.out.EmailClaimPort;
@@ -29,7 +32,7 @@ import java.util.UUID;
  *
  * <p>Aucun credential n'est porté par l'agrégat : l'authentification est passwordless
  * (code OTP email) ou sociale (provider OIDC). L'agrégat porte aussi le statut de compte
- * ({@link AccountStatus}) et la dernière suspension connue.</p>
+ * ({@link AccountStatus}), la dernière suspension connue et le droit Premium ({@link UserPremium}).</p>
  */
 @Getter
 @Aggregate
@@ -47,6 +50,8 @@ public class UserAggregate {
     private AccountStatus status = AccountStatus.ACTIVE;
 
     private UserSuspension suspension;
+
+    private UserPremium premium;
 
     // Constructeur par défaut requis par Axon
     protected UserAggregate() {
@@ -178,6 +183,48 @@ public class UserAggregate {
                 command.reinstatedAt()));
     }
 
+    @CommandHandler
+    public void handle(UserCommand.GrantPremiumCommand command) {
+        if (status == AccountStatus.DELETED || JoutioConstants.SYSTEM_USER_ID.equals(userId)) {
+            throw new PremiumProblems.PremiumNotGrantableProblem(userId);
+        }
+        if (command.source() == null || command.grantedAt() == null) {
+            throw new PremiumProblems.InvalidPremiumGrantProblem(userId, "A source and a grant date are required");
+        }
+        if (command.premiumUntil() != null && !command.premiumUntil().isAfter(command.grantedAt())) {
+            throw new PremiumProblems.InvalidPremiumGrantProblem(userId, "The premium end must be in the future");
+        }
+        if (PremiumRules.isActive(premium, command.grantedAt())
+                && premium.source() == command.source()
+                && java.util.Objects.equals(premium.premiumUntil(), command.premiumUntil())) {
+            return;
+        }
+        AggregateLifecycle.apply(new UserEvent.UserPremiumGrantedEvent(
+                userId,
+                command.source(),
+                command.premiumUntil(),
+                command.requestedBy(),
+                command.grantedAt()));
+    }
+
+    @CommandHandler
+    public void handle(UserCommand.RevokePremiumCommand command) {
+        if (!PremiumRules.isActive(premium, command.revokedAt())) {
+            return;
+        }
+        try {
+            UserReportRules.validateNote(command.note());
+        } catch (IllegalArgumentException error) {
+            throw new PremiumProblems.InvalidPremiumGrantProblem(userId, error.getMessage());
+        }
+        AggregateLifecycle.apply(new UserEvent.UserPremiumRevokedEvent(
+                userId,
+                premium.source(),
+                command.note(),
+                command.requestedBy(),
+                command.revokedAt()));
+    }
+
     @EventSourcingHandler
     public void on(UserEvent.UserRegisteredEvent event) {
         this.linkedSocialAccounts = new HashSet<>();
@@ -225,7 +272,18 @@ public class UserAggregate {
         this.email = "deleted-" + userId + "@invalid.local";
         this.linkedSocialAccounts = new HashSet<>();
         this.suspension = null;
+        this.premium = null;
         this.lastLoginAt = null;
+    }
+
+    @EventSourcingHandler
+    public void on(UserEvent.UserPremiumGrantedEvent event) {
+        this.premium = new UserPremium(event.source(), event.premiumUntil(), event.grantedBy(), event.grantedAt());
+    }
+
+    @EventSourcingHandler
+    public void on(UserEvent.UserPremiumRevokedEvent event) {
+        this.premium = null;
     }
 
     @EventSourcingHandler

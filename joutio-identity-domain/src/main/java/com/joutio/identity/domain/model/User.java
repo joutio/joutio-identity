@@ -16,7 +16,8 @@ public record User(
         Set<SocialProvider> linkedSocialAccounts,
         Instant createdAt,
         AccountStatus status,
-        UserSuspension suspension
+        UserSuspension suspension,
+        UserPremium premium
 ) {
 
     public User {
@@ -25,7 +26,22 @@ public record User(
 
     /** Constructeur de compatibilité pour les comptes jamais suspendus. */
     public User(String userId, String email, Set<SocialProvider> linkedSocialAccounts, Instant createdAt) {
-        this(userId, email, linkedSocialAccounts, createdAt, AccountStatus.ACTIVE, null);
+        this(userId, email, linkedSocialAccounts, createdAt, AccountStatus.ACTIVE, null, null);
+    }
+
+    /** Constructeur de compatibilité pour les comptes sans droit Premium. */
+    public User(String userId,
+                String email,
+                Set<SocialProvider> linkedSocialAccounts,
+                Instant createdAt,
+                AccountStatus status,
+                UserSuspension suspension) {
+        this(userId, email, linkedSocialAccounts, createdAt, status, suspension, null);
+    }
+
+    /** Droit Premium effectif : accordé, non échu, compte ni suspendu ni supprimé. */
+    public boolean premiumActive(Instant now) {
+        return PremiumRules.isEffective(status, suspension == null ? null : suspension.suspendedUntil(), premium, now);
     }
 
     public boolean suspended(Instant now) {

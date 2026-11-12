@@ -1,5 +1,6 @@
 package com.joutio.identity.domain.event;
 
+import com.joutio.identity.domain.model.PremiumSource;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.SuspensionReinstatementReason;
 import com.joutio.identity.domain.model.UserSuspensionReason;
@@ -84,6 +85,31 @@ public interface UserEvent {
             String note,
             String reinstatedBy,
             Instant reinstatedAt
+    ) implements UserEvent {
+    }
+
+    /**
+     * Événement émis lorsqu'un droit Premium est accordé ou remplacé (prolongation, nouvelle
+     * échéance). {@code premiumUntil} nul = sans échéance.
+     */
+    record UserPremiumGrantedEvent(
+            String userId,
+            PremiumSource source,
+            Instant premiumUntil,
+            String grantedBy,
+            Instant grantedAt
+    ) implements UserEvent {
+    }
+
+    /**
+     * Événement émis lorsqu'un droit Premium est retiré avant son échéance.
+     */
+    record UserPremiumRevokedEvent(
+            String userId,
+            PremiumSource source,
+            String note,
+            String revokedBy,
+            Instant revokedAt
     ) implements UserEvent {
     }
 }

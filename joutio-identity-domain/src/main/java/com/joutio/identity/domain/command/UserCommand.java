@@ -1,5 +1,6 @@
 package com.joutio.identity.domain.command;
 
+import com.joutio.identity.domain.model.PremiumSource;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.SuspensionReinstatementReason;
 import com.joutio.identity.domain.model.UserSuspensionReason;
@@ -79,6 +80,33 @@ public interface UserCommand {
             String note,
             String requestedBy,
             Instant reinstatedAt
+    ) implements UserCommand {
+    }
+
+    /**
+     * Accorde (ou remplace) le droit Premium. {@code premiumUntil} nul = sans échéance.
+     *
+     * <p>Émise par un administrateur (source {@code MANUAL}) puis, à l'ouverture des paiements,
+     * par la traduction des événements d'abonnement de {@code joutio-billing}. Idempotente :
+     * un droit identique déjà actif n'émet rien.</p>
+     */
+    record GrantPremiumCommand(
+            @TargetAggregateIdentifier String userId,
+            PremiumSource source,
+            Instant premiumUntil,
+            String requestedBy,
+            Instant grantedAt
+    ) implements UserCommand {
+    }
+
+    /**
+     * Retire le droit Premium. Idempotente : sans effet si aucun droit n'est actif.
+     */
+    record RevokePremiumCommand(
+            @TargetAggregateIdentifier String userId,
+            String note,
+            String requestedBy,
+            Instant revokedAt
     ) implements UserCommand {
     }
 }

@@ -2,6 +2,8 @@ package com.joutio.identity.application.projection;
 
 import com.joutio.identity.domain.event.UserEvent;
 import com.joutio.identity.domain.model.AccountStatus;
+import com.joutio.identity.domain.model.PremiumSource;
+import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.model.SuspensionReinstatementReason;
 import com.joutio.identity.domain.model.User;
 import com.joutio.identity.domain.model.UserSuspension;
@@ -97,6 +99,47 @@ class UserProjectionTest {
         User saved = captureSaved();
         assertThat(saved.status()).isEqualTo(AccountStatus.SUSPENDED);
         assertThat(saved.suspension().suspensionId()).isEqualTo("s1");
+    }
+
+    @Test
+    void premiumGrant_storesGrantAndKeepsStatus() {
+        when(repository.findById("user-1")).thenReturn(Optional.of(activeUser()));
+
+        projection.on(new UserEvent.UserPremiumGrantedEvent(
+                "user-1", PremiumSource.MANUAL, AT.plusSeconds(3600), "admin-1", AT));
+
+        User saved = captureSaved();
+        assertThat(saved.status()).isEqualTo(AccountStatus.ACTIVE);
+        assertThat(saved.premium()).isEqualTo(
+                new UserPremium(PremiumSource.MANUAL, AT.plusSeconds(3600), "admin-1", AT));
+        assertThat(saved.premiumActive(AT.plusSeconds(60))).isTrue();
+    }
+
+    @Test
+    void premiumRevoke_clearsGrant() {
+        User premium = new User("user-1", "user@joutio.dev", Set.of(), AT, AccountStatus.ACTIVE, null,
+                new UserPremium(PremiumSource.MANUAL, null, "admin-1", AT));
+        when(repository.findById("user-1")).thenReturn(Optional.of(premium));
+
+        projection.on(new UserEvent.UserPremiumRevokedEvent(
+                "user-1", PremiumSource.MANUAL, null, "admin-1", AT.plusSeconds(60)));
+
+        assertThat(captureSaved().premium()).isNull();
+    }
+
+    @Test
+    void suspension_keepsPremiumGrant() {
+        UserPremium grant = new UserPremium(PremiumSource.MANUAL, null, "admin-1", AT);
+        when(repository.findById("user-1")).thenReturn(Optional.of(
+                new User("user-1", "user@joutio.dev", Set.of(), AT, AccountStatus.ACTIVE, null, grant)));
+
+        projection.on(new UserEvent.UserSuspendedEvent(
+                "user-1", "user@joutio.dev", "s1",
+                UserSuspensionReason.SPAM, null, "admin-1", AT, null));
+
+        User saved = captureSaved();
+        assertThat(saved.premium()).isEqualTo(grant);
+        assertThat(saved.premiumActive(AT.plusSeconds(60))).isFalse();
     }
 
     private User captureSaved() {

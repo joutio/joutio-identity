@@ -3,6 +3,7 @@ package com.joutio.identity.infrastructure.out.persistence.entity;
 import com.joutio.microservice.core.domain.model.search.FieldType;
 import com.joutio.microservice.core.domain.model.search.Searchable;
 import com.joutio.identity.domain.model.AccountStatus;
+import com.joutio.identity.domain.model.PremiumSource;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.SuspensionReinstatementReason;
 import com.joutio.identity.domain.model.UserSuspensionReason;
@@ -81,4 +82,17 @@ public class UserEntity {
 
     @Column(name = "reinstatement_note", length = 500)
     private String reinstatementNote;
+
+    @Column(name = "premium_source", length = 20)
+    @Enumerated(EnumType.STRING)
+    private PremiumSource premiumSource;
+
+    @Column(name = "premium_until")
+    private Instant premiumUntil;
+
+    @Column(name = "premium_granted_by", length = 255)
+    private String premiumGrantedBy;
+
+    @Column(name = "premium_granted_at")
+    private Instant premiumGrantedAt;
 }

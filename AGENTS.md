@@ -226,9 +226,21 @@ doit être déployé **avant** le BFF qui émet ces filtres.
 | `app.security.session.cookie-*` | Cookie `AUTH_TX` (name/same-site/secure) |
 | `spring.security.oauth2.authorizationserver.client.{web,mobile}.token` | Tokens des clients SPA/mobile : access `PT1H`, refresh **`P365D`** (sessions longues), rotation `reuse-refresh-tokens: false` — clients construits en mémoire au démarrage (rollout image suffisant) |
 
-### Droits effectifs (équipes de sujets)
+### Droit Premium et droits effectifs
 
-`UserQuery.GetUserEntitlementsQuery(userId)` retourne `UserEntitlements(userId,premium)` sur le bus.
-Le port `UserEntitlementsPort` est adapté par la même attribution `Roles.forUser` que les sessions.
-Un compte suspendu n'a pas de droit Premium effectif. Le BFF vérifie ainsi le propriétaire et les
-administrateurs de sujets sans accepter des droits fournis par le mobile. Le paiement reste hors périmètre.
+Le droit Premium est **porté par `UserAggregate`** (2026-11-12, `premium/specs/entitlements.md`) :
+`GrantPremiumCommand(userId, source, premiumUntil?, requestedBy, grantedAt)` /
+`RevokePremiumCommand(userId, note?, requestedBy, revokedAt)` → `UserPremiumGrantedEvent` /
+`UserPremiumRevokedEvent`. `premiumUntil` nul = sans échéance ; `PremiumSource` ∈
+`MANUAL|APP_STORE|PLAY|WEB` (seul `MANUAL` est émis tant que `joutio-billing` n'existe pas).
+Grant idempotent sur un droit identique actif, refusé pour un compte supprimé ou système ; Revoke
+idempotent. La projection `user_entry` porte `premium_source|until|granted_by|granted_at` (V3) ;
+`User.premium`, `UserAccountStatus.premium` et `PremiumRules` (`isActive`, `isEffective`) exposent
+le droit. Un compte **suspendu** n'exerce jamais Premium (vérifié à la lecture, le droit reste
+stocké).
+
+`UserQuery.GetUserEntitlementsQuery(userId)` retourne `UserEntitlements(userId, premium,
+premiumUntil, source)` : `premium` = droit accordé actif **ou** `ROLE_ADMIN` (`Roles.forUser`), faux
+si suspendu. Le BFF lit le droit du joueur courant via `UserAccountStatus` (cache `IdentityLookup`
+purgé sur les événements Premium) ; `ROLE_PREMIUM` n'est plus émis ni lu. Le paiement
+(`joutio-billing`) arrive en M2 et enverra les mêmes commandes.

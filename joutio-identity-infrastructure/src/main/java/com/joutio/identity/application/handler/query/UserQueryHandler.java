@@ -69,7 +69,8 @@ public class UserQueryHandler {
         return new UserAccountStatus(
                 user.userId(),
                 user.status(),
-                user.suspension() == null ? null : user.suspension().suspendedUntil());
+                user.suspension() == null ? null : user.suspension().suspendedUntil(),
+                user.premium());
     }
 
     @QueryHandler
@@ -78,7 +79,8 @@ public class UserQueryHandler {
                 .map(user -> new UserAccountStatus(
                         user.userId(),
                         user.status(),
-                        user.suspension() == null ? null : user.suspension().suspendedUntil()))
+                        user.suspension() == null ? null : user.suspension().suspendedUntil(),
+                        user.premium()))
                 .toList();
     }
 }

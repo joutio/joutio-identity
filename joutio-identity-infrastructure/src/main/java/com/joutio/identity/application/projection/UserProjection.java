@@ -6,6 +6,7 @@ import com.joutio.identity.domain.event.UserEvent;
 import com.joutio.identity.domain.model.AccountStatus;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.User;
+import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.model.UserSuspension;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
 import com.joutio.identity.domain.event.UserEvent.UserAccountDeletedEvent;
@@ -91,7 +92,8 @@ public class UserProjection {
                     linkedAccounts,
                     user.createdAt(),
                     user.status(),
-                    user.suspension()
+                    user.suspension(),
+                    user.premium()
             ));
 
             logger.info("Social provider linked: userId={}, provider={}", event.userId(), event.provider());
@@ -122,7 +124,8 @@ public class UserProjection {
                     user.linkedSocialAccounts(),
                     user.createdAt(),
                     AccountStatus.SUSPENDED,
-                    suspension));
+                    suspension,
+                    user.premium()));
             logger.info("User suspended: userId={}, until={}", event.userId(), event.suspendedUntil());
         }, () -> logger.warn("Cannot suspend: user not projected yet, userId={}", event.userId()));
     }
@@ -177,8 +180,46 @@ public class UserProjection {
                     user.linkedSocialAccounts(),
                     user.createdAt(),
                     AccountStatus.ACTIVE,
-                    suspension));
+                    suspension,
+                    user.premium()));
             logger.info("User reinstated: userId={}, reason={}", event.userId(), event.reason());
         }, () -> logger.warn("Cannot reinstate: user not projected yet, userId={}", event.userId()));
+    }
+
+    @EventHandler
+    @Transactional
+    public void on(UserEvent.UserPremiumGrantedEvent event) {
+        userRepositoryPort.findById(event.userId()).ifPresentOrElse(user -> {
+            if (user.status() == AccountStatus.DELETED) {
+                return;
+            }
+            userRepositoryPort.save(withPremium(user, new UserPremium(
+                    event.source(), event.premiumUntil(), event.grantedBy(), event.grantedAt())));
+            logger.info("Premium granted: userId={}, source={}, until={}",
+                    event.userId(), event.source(), event.premiumUntil());
+        }, () -> logger.warn("Cannot grant premium: user not projected yet, userId={}", event.userId()));
+    }
+
+    @EventHandler
+    @Transactional
+    public void on(UserEvent.UserPremiumRevokedEvent event) {
+        userRepositoryPort.findById(event.userId()).ifPresentOrElse(user -> {
+            if (user.status() == AccountStatus.DELETED) {
+                return;
+            }
+            userRepositoryPort.save(withPremium(user, null));
+            logger.info("Premium revoked: userId={}, source={}", event.userId(), event.source());
+        }, () -> logger.warn("Cannot revoke premium: user not projected yet, userId={}", event.userId()));
+    }
+
+    private static User withPremium(User user, UserPremium premium) {
+        return new User(
+                user.userId(),
+                user.email(),
+                user.linkedSocialAccounts(),
+                user.createdAt(),
+                user.status(),
+                user.suspension(),
+                premium);
     }
 }
