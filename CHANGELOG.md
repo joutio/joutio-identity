@@ -1,3 +1,9 @@
+## [1.2.1](https://github.com/joutio/joutio-identity/compare/v1.2.0...v1.2.1) (2026-11-12)
+
+### Bug Fixes
+
+* **identity:** pick the injectable UserEntitlementsAdapter constructor ([3414fa7](https://github.com/joutio/joutio-identity/commit/3414fa772387d722e56b5f596fd3b272d99ff50d))
+
 ## [1.2.0](https://github.com/joutio/joutio-identity/compare/v1.1.0...v1.2.0) (2026-11-12)
 
 ### Features
