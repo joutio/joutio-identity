@@ -1,3 +1,10 @@
+## [1.3.0](https://github.com/joutio/joutio-identity/compare/v1.2.2...v1.3.0) (2026-11-13)
+
+### Features
+
+* **identity:** private birth date with 15-year minimum ([180b169](https://github.com/joutio/joutio-identity/commit/180b1695b16c7f33e37b86b0fd098594451d0795))
+* **identity:** referral codes and sponsor attribution ([2a52361](https://github.com/joutio/joutio-identity/commit/2a52361a18cf81612daf734fc55efb7afab48ae9))
+
 ## [1.2.2](https://github.com/joutio/joutio-identity/compare/v1.2.1...v1.2.2) (2026-11-12)
 
 ### Bug Fixes
