@@ -7,6 +7,7 @@ import com.joutio.identity.domain.model.UserSuspensionReason;
 import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 public interface UserCommand {
 
@@ -107,6 +108,18 @@ public interface UserCommand {
             String note,
             String requestedBy,
             Instant revokedAt
+    ) implements UserCommand {
+    }
+
+    /**
+     * Renseigne ou corrige la date de naissance (privée). Refusée sous {@code BirthDateRules.MIN_AGE} ans.
+     * Idempotente : une date identique n'émet rien. {@code requestedAt} fixe le jour de référence du calcul d'âge.
+     */
+    record SetBirthDateCommand(
+            @TargetAggregateIdentifier String userId,
+            LocalDate birthDate,
+            String requestedBy,
+            Instant requestedAt
     ) implements UserCommand {
     }
 }

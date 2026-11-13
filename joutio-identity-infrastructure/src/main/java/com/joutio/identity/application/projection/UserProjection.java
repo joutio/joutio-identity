@@ -86,15 +86,7 @@ public class UserProjection {
             Set<SocialProvider> linkedAccounts = new HashSet<>(user.linkedSocialAccounts());
             linkedAccounts.add(event.provider());
 
-            userRepositoryPort.save(new User(
-                    user.userId(),
-                    user.email(),
-                    linkedAccounts,
-                    user.createdAt(),
-                    user.status(),
-                    user.suspension(),
-                    user.premium()
-            ));
+            userRepositoryPort.save(user.withLinkedSocialAccounts(linkedAccounts));
 
             logger.info("Social provider linked: userId={}, provider={}", event.userId(), event.provider());
         }, () -> logger.warn("Cannot link social provider: user not projected yet, userId={}", event.userId()));
@@ -118,14 +110,7 @@ public class UserProjection {
                     null,
                     null,
                     null);
-            userRepositoryPort.save(new User(
-                    user.userId(),
-                    user.email(),
-                    user.linkedSocialAccounts(),
-                    user.createdAt(),
-                    AccountStatus.SUSPENDED,
-                    suspension,
-                    user.premium()));
+            userRepositoryPort.save(user.withStatus(AccountStatus.SUSPENDED, suspension));
             logger.info("User suspended: userId={}, until={}", event.userId(), event.suspendedUntil());
         }, () -> logger.warn("Cannot suspend: user not projected yet, userId={}", event.userId()));
     }
@@ -174,14 +159,7 @@ public class UserProjection {
                         event.reason(),
                         event.note());
             }
-            userRepositoryPort.save(new User(
-                    user.userId(),
-                    user.email(),
-                    user.linkedSocialAccounts(),
-                    user.createdAt(),
-                    AccountStatus.ACTIVE,
-                    suspension,
-                    user.premium()));
+            userRepositoryPort.save(user.withStatus(AccountStatus.ACTIVE, suspension));
             logger.info("User reinstated: userId={}, reason={}", event.userId(), event.reason());
         }, () -> logger.warn("Cannot reinstate: user not projected yet, userId={}", event.userId()));
     }
@@ -193,7 +171,7 @@ public class UserProjection {
             if (user.status() == AccountStatus.DELETED) {
                 return;
             }
-            userRepositoryPort.save(withPremium(user, new UserPremium(
+            userRepositoryPort.save(user.withPremium(new UserPremium(
                     event.source(), event.premiumUntil(), event.grantedBy(), event.grantedAt())));
             logger.info("Premium granted: userId={}, source={}, until={}",
                     event.userId(), event.source(), event.premiumUntil());
@@ -207,19 +185,21 @@ public class UserProjection {
             if (user.status() == AccountStatus.DELETED) {
                 return;
             }
-            userRepositoryPort.save(withPremium(user, null));
+            userRepositoryPort.save(user.withPremium(null));
             logger.info("Premium revoked: userId={}, source={}", event.userId(), event.source());
         }, () -> logger.warn("Cannot revoke premium: user not projected yet, userId={}", event.userId()));
     }
 
-    private static User withPremium(User user, UserPremium premium) {
-        return new User(
-                user.userId(),
-                user.email(),
-                user.linkedSocialAccounts(),
-                user.createdAt(),
-                user.status(),
-                user.suspension(),
-                premium);
+    @EventHandler
+    @Transactional
+    public void on(UserEvent.UserBirthDateSetEvent event) {
+        userRepositoryPort.findById(event.userId()).ifPresentOrElse(user -> {
+            if (user.status() == AccountStatus.DELETED) {
+                return;
+            }
+            userRepositoryPort.save(user.withBirthDate(event.birthDate()));
+            // Donnée privée : jamais journalisée.
+            logger.info("Birth date set: userId={}", event.userId());
+        }, () -> logger.warn("Cannot set birth date: user not projected yet, userId={}", event.userId()));
     }
 }

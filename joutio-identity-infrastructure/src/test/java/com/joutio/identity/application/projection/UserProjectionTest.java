@@ -51,6 +51,29 @@ class UserProjectionTest {
     }
 
     @Test
+    void birthDateSet_isProjectedAndSurvivesSuspension() {
+        java.time.LocalDate birthDate = java.time.LocalDate.parse("1998-03-04");
+        when(repository.findById("user-1")).thenReturn(Optional.of(activeUser()));
+        projection.on(new UserEvent.UserBirthDateSetEvent("user-1", birthDate, "user-1", AT));
+        User withBirthDate = captureSaved();
+        assertThat(withBirthDate.birthDate()).isEqualTo(birthDate);
+
+        org.mockito.Mockito.reset(repository);
+        when(repository.findById("user-1")).thenReturn(Optional.of(withBirthDate));
+        projection.on(new UserEvent.UserSuspendedEvent(
+                "user-1", "user@joutio.dev", "s1",
+                UserSuspensionReason.HARASSMENT, null, "admin-1", AT, null));
+        assertThat(captureSaved().birthDate()).isEqualTo(birthDate);
+    }
+
+    @Test
+    void accountDeletion_erasesBirthDate() {
+        when(repository.findById("user-1")).thenReturn(Optional.of(activeUser().withBirthDate(java.time.LocalDate.parse("1998-03-04"))));
+        projection.on(new UserAccountDeletedEvent("user-1", "deletion-1", AT));
+        assertThat(captureSaved().birthDate()).isNull();
+    }
+
+    @Test
     void accountDeletion_anonymizesAccountAndPurgesEventStore() {
         when(repository.findById("user-1")).thenReturn(Optional.of(activeUser()));
 

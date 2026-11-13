@@ -390,4 +390,81 @@ class UserAggregateTest {
                 UserSuspensionReason.HARASSMENT, null, "admin-0",
                 Instant.parse("2026-01-05T00:00:00Z"), until);
     }
+
+    // ─── Date de naissance ───
+
+    private static final Instant BIRTH_REQUESTED_AT = Instant.parse("2026-11-13T10:00:00Z");
+
+    @Test
+    void setBirthDate_fifteenToday_appliesEvent() {
+        java.time.LocalDate birthDate = java.time.LocalDate.parse("2011-11-13");
+        fixture.given(registered())
+                .when(new UserCommand.SetBirthDateCommand("user-8", birthDate, "user-8", BIRTH_REQUESTED_AT))
+                .expectEvents(new UserEvent.UserBirthDateSetEvent("user-8", birthDate, "user-8", BIRTH_REQUESTED_AT));
+    }
+
+    @Test
+    void setBirthDate_fifteenTomorrow_isUnderage() {
+        fixture.given(registered())
+                .when(new UserCommand.SetBirthDateCommand(
+                        "user-8", java.time.LocalDate.parse("2011-11-14"), "user-8", BIRTH_REQUESTED_AT))
+                .expectException(com.joutio.identity.domain.exception.BirthDateProblems.UnderageProblem.class);
+    }
+
+    @Test
+    void setBirthDate_leapDay_isFifteenOnFebruary28() {
+        java.time.LocalDate leapDay = java.time.LocalDate.parse("2012-02-29");
+        Instant feb28 = Instant.parse("2027-02-28T00:00:00Z");
+        fixture.given(registered())
+                .when(new UserCommand.SetBirthDateCommand("user-8", leapDay, "user-8", feb28))
+                .expectEvents(new UserEvent.UserBirthDateSetEvent("user-8", leapDay, "user-8", feb28));
+    }
+
+    @Test
+    void setBirthDate_inFuture_isInvalid() {
+        fixture.given(registered())
+                .when(new UserCommand.SetBirthDateCommand(
+                        "user-8", java.time.LocalDate.parse("2027-01-01"), "user-8", BIRTH_REQUESTED_AT))
+                .expectException(com.joutio.identity.domain.exception.BirthDateProblems.InvalidBirthDateProblem.class);
+    }
+
+    @Test
+    void setBirthDate_overMaxAge_isInvalid() {
+        fixture.given(registered())
+                .when(new UserCommand.SetBirthDateCommand(
+                        "user-8", java.time.LocalDate.parse("1900-01-01"), "user-8", BIRTH_REQUESTED_AT))
+                .expectException(com.joutio.identity.domain.exception.BirthDateProblems.InvalidBirthDateProblem.class);
+    }
+
+    @Test
+    void setBirthDate_missing_isInvalid() {
+        fixture.given(registered())
+                .when(new UserCommand.SetBirthDateCommand("user-8", null, "user-8", BIRTH_REQUESTED_AT))
+                .expectException(com.joutio.identity.domain.exception.BirthDateProblems.InvalidBirthDateProblem.class);
+    }
+
+    @Test
+    void setBirthDate_sameDate_isIdempotent() {
+        java.time.LocalDate birthDate = java.time.LocalDate.parse("1998-03-04");
+        fixture.given(registered(), new UserEvent.UserBirthDateSetEvent("user-8", birthDate, "user-8", BIRTH_REQUESTED_AT))
+                .when(new UserCommand.SetBirthDateCommand("user-8", birthDate, "user-8", BIRTH_REQUESTED_AT))
+                .expectNoEvents();
+    }
+
+    @Test
+    void setBirthDate_correction_appliesNewEvent() {
+        java.time.LocalDate first = java.time.LocalDate.parse("1998-03-04");
+        java.time.LocalDate corrected = java.time.LocalDate.parse("1998-04-03");
+        fixture.given(registered(), new UserEvent.UserBirthDateSetEvent("user-8", first, "user-8", BIRTH_REQUESTED_AT))
+                .when(new UserCommand.SetBirthDateCommand("user-8", corrected, "user-8", BIRTH_REQUESTED_AT))
+                .expectEvents(new UserEvent.UserBirthDateSetEvent("user-8", corrected, "user-8", BIRTH_REQUESTED_AT));
+    }
+
+    @Test
+    void setBirthDate_deletedAccount_isRefused() {
+        fixture.given(registered(), new UserAccountDeletedEvent("user-8", "deletion-1", BIRTH_REQUESTED_AT))
+                .when(new UserCommand.SetBirthDateCommand(
+                        "user-8", java.time.LocalDate.parse("1998-03-04"), "user-8", BIRTH_REQUESTED_AT))
+                .expectException(com.joutio.identity.domain.exception.BirthDateProblems.BirthDateNotEditableProblem.class);
+    }
 }

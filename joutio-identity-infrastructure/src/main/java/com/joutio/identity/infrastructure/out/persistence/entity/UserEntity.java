@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -95,4 +96,8 @@ public class UserEntity {
 
     @Column(name = "premium_granted_at")
     private Instant premiumGrantedAt;
+
+    /** Privée (editer-profil.md § 5). */
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
 }

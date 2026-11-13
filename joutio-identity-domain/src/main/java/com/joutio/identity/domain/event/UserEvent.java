@@ -6,6 +6,7 @@ import com.joutio.identity.domain.model.SuspensionReinstatementReason;
 import com.joutio.identity.domain.model.UserSuspensionReason;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 public interface UserEvent {
     String userId();
@@ -110,6 +111,18 @@ public interface UserEvent {
             String note,
             String revokedBy,
             Instant revokedAt
+    ) implements UserEvent {
+    }
+
+    /**
+     * Événement émis lorsqu'un joueur renseigne ou corrige sa date de naissance. Donnée privée : aucun
+     * consommateur hors d'identity ne doit la projeter ni l'exposer publiquement.
+     */
+    record UserBirthDateSetEvent(
+            String userId,
+            LocalDate birthDate,
+            String setBy,
+            Instant setAt
     ) implements UserEvent {
     }
 }

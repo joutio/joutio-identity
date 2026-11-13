@@ -48,7 +48,8 @@ public final class UserEntityMapper {
                 entity.getCreatedAt(),
                 entity.getStatus() == null ? AccountStatus.ACTIVE : entity.getStatus(),
                 suspension,
-                premium
+                premium,
+                entity.getBirthDate()
         );
     }
 
@@ -79,6 +80,8 @@ public final class UserEntityMapper {
             userEntity.setReinstatementReason(suspension.reinstatementReason());
             userEntity.setReinstatementNote(suspension.reinstatementNote());
         }
+
+        userEntity.setBirthDate(user.birthDate());
 
         UserPremium premium = user.premium();
         if (premium != null) {

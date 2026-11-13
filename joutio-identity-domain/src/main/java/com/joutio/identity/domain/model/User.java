@@ -1,6 +1,7 @@
 package com.joutio.identity.domain.model;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Set;
 
 /**
@@ -17,7 +18,9 @@ public record User(
         Instant createdAt,
         AccountStatus status,
         UserSuspension suspension,
-        UserPremium premium
+        UserPremium premium,
+        /** Privée : exposée au seul joueur concerné. Nulle tant qu'elle n'est pas renseignée. */
+        LocalDate birthDate
 ) {
 
     public User {
@@ -26,7 +29,7 @@ public record User(
 
     /** Constructeur de compatibilité pour les comptes jamais suspendus. */
     public User(String userId, String email, Set<SocialProvider> linkedSocialAccounts, Instant createdAt) {
-        this(userId, email, linkedSocialAccounts, createdAt, AccountStatus.ACTIVE, null, null);
+        this(userId, email, linkedSocialAccounts, createdAt, AccountStatus.ACTIVE, null, null, null);
     }
 
     /** Constructeur de compatibilité pour les comptes sans droit Premium. */
@@ -36,7 +39,34 @@ public record User(
                 Instant createdAt,
                 AccountStatus status,
                 UserSuspension suspension) {
-        this(userId, email, linkedSocialAccounts, createdAt, status, suspension, null);
+        this(userId, email, linkedSocialAccounts, createdAt, status, suspension, null, null);
+    }
+
+    /** Constructeur de compatibilité pour les comptes sans date de naissance. */
+    public User(String userId,
+                String email,
+                Set<SocialProvider> linkedSocialAccounts,
+                Instant createdAt,
+                AccountStatus status,
+                UserSuspension suspension,
+                UserPremium premium) {
+        this(userId, email, linkedSocialAccounts, createdAt, status, suspension, premium, null);
+    }
+
+    public User withLinkedSocialAccounts(Set<SocialProvider> accounts) {
+        return new User(userId, email, accounts, createdAt, status, suspension, premium, birthDate);
+    }
+
+    public User withStatus(AccountStatus nextStatus, UserSuspension nextSuspension) {
+        return new User(userId, email, linkedSocialAccounts, createdAt, nextStatus, nextSuspension, premium, birthDate);
+    }
+
+    public User withPremium(UserPremium nextPremium) {
+        return new User(userId, email, linkedSocialAccounts, createdAt, status, suspension, nextPremium, birthDate);
+    }
+
+    public User withBirthDate(LocalDate nextBirthDate) {
+        return new User(userId, email, linkedSocialAccounts, createdAt, status, suspension, premium, nextBirthDate);
     }
 
     /** Droit Premium effectif : accordé, non échu, compte ni suspendu ni supprimé. */

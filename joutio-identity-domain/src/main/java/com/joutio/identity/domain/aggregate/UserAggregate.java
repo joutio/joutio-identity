@@ -2,11 +2,13 @@ package com.joutio.identity.domain.aggregate;
 
 import com.joutio.identity.domain.command.UserCommand;
 import com.joutio.identity.domain.event.UserEvent;
+import com.joutio.identity.domain.exception.BirthDateProblems;
 import com.joutio.identity.domain.exception.PremiumProblems;
 import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.exception.UserReportProblems;
 import com.joutio.identity.domain.model.AccountStatus;
 import com.joutio.identity.domain.model.AccountStatusRules;
+import com.joutio.identity.domain.model.BirthDateRules;
 import com.joutio.identity.domain.model.PremiumRules;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.UserPremium;
@@ -23,6 +25,7 @@ import org.axonframework.modelling.command.AggregateLifecycle;
 import org.axonframework.spring.stereotype.Aggregate;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -52,6 +55,9 @@ public class UserAggregate {
     private UserSuspension suspension;
 
     private UserPremium premium;
+
+    /** Privée : jamais portée par un événement public autre que {@link UserEvent.UserBirthDateSetEvent}. */
+    private LocalDate birthDate;
 
     // Constructeur par défaut requis par Axon
     protected UserAggregate() {
@@ -225,6 +231,36 @@ public class UserAggregate {
                 command.revokedAt()));
     }
 
+    @CommandHandler
+    public void handle(UserCommand.SetBirthDateCommand command) {
+        if (status == AccountStatus.DELETED || JoutioConstants.SYSTEM_USER_ID.equals(userId)) {
+            throw new BirthDateProblems.BirthDateNotEditableProblem(userId);
+        }
+        Instant requestedAt = command.requestedAt() == null ? Instant.now() : command.requestedAt();
+        LocalDate today = BirthDateRules.today(requestedAt);
+        try {
+            BirthDateRules.validate(command.birthDate(), today);
+        } catch (IllegalArgumentException error) {
+            throw new BirthDateProblems.InvalidBirthDateProblem(userId, error.getMessage());
+        }
+        if (!BirthDateRules.oldEnough(command.birthDate(), today)) {
+            throw new BirthDateProblems.UnderageProblem(userId);
+        }
+        if (command.birthDate().equals(birthDate)) {
+            return;
+        }
+        AggregateLifecycle.apply(new UserEvent.UserBirthDateSetEvent(
+                userId,
+                command.birthDate(),
+                command.requestedBy(),
+                requestedAt));
+    }
+
+    @EventSourcingHandler
+    public void on(UserEvent.UserBirthDateSetEvent event) {
+        this.birthDate = event.birthDate();
+    }
+
     @EventSourcingHandler
     public void on(UserEvent.UserRegisteredEvent event) {
         this.linkedSocialAccounts = new HashSet<>();
@@ -273,6 +309,7 @@ public class UserAggregate {
         this.linkedSocialAccounts = new HashSet<>();
         this.suspension = null;
         this.premium = null;
+        this.birthDate = null;
         this.lastLoginAt = null;
     }
 
