@@ -28,4 +28,10 @@ public interface UserQuery {
     record GetUserAccountStatusesQuery(List<String> userIds) implements UserQuery {}
 
     record GetUserEntitlementsQuery(String userId) implements UserQuery {}
+
+    /** Code de parrainage du joueur (créé au premier appel), nombre de filleuls et parrain éventuel. */
+    record GetReferralSummaryQuery(String userId) implements UserQuery {}
+
+    /** Identifiant du joueur qui porte ce code, ou chaîne vide si le code est inconnu. */
+    record FindUserIdByReferralCodeQuery(String code) implements UserQuery {}
 }

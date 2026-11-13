@@ -467,4 +467,58 @@ class UserAggregateTest {
                         "user-8", java.time.LocalDate.parse("1998-03-04"), "user-8", BIRTH_REQUESTED_AT))
                 .expectException(com.joutio.identity.domain.exception.BirthDateProblems.BirthDateNotEditableProblem.class);
     }
+
+    // ─── Parrainage ───
+
+    @Test
+    void applyReferral_withinWindow_appliesEvent() {
+        Instant at = REGISTERED_AT_FOR_REFERRAL.plusSeconds(3600);
+        fixture.given(registeredAt(REGISTERED_AT_FOR_REFERRAL))
+                .when(new UserCommand.ApplyReferralCommand("user-8", "sponsor-1", at))
+                .expectEvents(new UserEvent.UserReferredEvent("user-8", "sponsor-1", at));
+    }
+
+    @Test
+    void applyReferral_self_isRefused() {
+        fixture.given(registeredAt(REGISTERED_AT_FOR_REFERRAL))
+                .when(new UserCommand.ApplyReferralCommand("user-8", "user-8", REGISTERED_AT_FOR_REFERRAL))
+                .expectException(com.joutio.identity.domain.exception.ReferralProblems.SelfReferralProblem.class);
+    }
+
+    @Test
+    void applyReferral_afterThirtyDays_isRefused() {
+        fixture.given(registeredAt(REGISTERED_AT_FOR_REFERRAL))
+                .when(new UserCommand.ApplyReferralCommand("user-8", "sponsor-1",
+                        REGISTERED_AT_FOR_REFERRAL.plus(java.time.Duration.ofDays(31))))
+                .expectException(com.joutio.identity.domain.exception.ReferralProblems.ReferralWindowClosedProblem.class);
+    }
+
+    @Test
+    void applyReferral_sameSponsorAgain_isIdempotent() {
+        fixture.given(registeredAt(REGISTERED_AT_FOR_REFERRAL),
+                        new UserEvent.UserReferredEvent("user-8", "sponsor-1", REGISTERED_AT_FOR_REFERRAL))
+                .when(new UserCommand.ApplyReferralCommand("user-8", "sponsor-1", REGISTERED_AT_FOR_REFERRAL))
+                .expectNoEvents();
+    }
+
+    @Test
+    void applyReferral_otherSponsor_isRefused() {
+        fixture.given(registeredAt(REGISTERED_AT_FOR_REFERRAL),
+                        new UserEvent.UserReferredEvent("user-8", "sponsor-1", REGISTERED_AT_FOR_REFERRAL))
+                .when(new UserCommand.ApplyReferralCommand("user-8", "sponsor-2", REGISTERED_AT_FOR_REFERRAL))
+                .expectException(com.joutio.identity.domain.exception.ReferralProblems.AlreadyReferredProblem.class);
+    }
+
+    @Test
+    void applyReferral_systemSponsor_isRefused() {
+        fixture.given(registeredAt(REGISTERED_AT_FOR_REFERRAL))
+                .when(new UserCommand.ApplyReferralCommand("user-8", JoutioConstants.SYSTEM_USER_ID, REGISTERED_AT_FOR_REFERRAL))
+                .expectException(com.joutio.identity.domain.exception.ReferralProblems.InvalidReferralCodeProblem.class);
+    }
+
+    private static final Instant REGISTERED_AT_FOR_REFERRAL = Instant.parse("2026-11-13T08:00:00Z");
+
+    private static UserEvent.UserRegisteredEvent registeredAt(Instant at) {
+        return new UserEvent.UserRegisteredEvent("user-8", "user@joutio.dev", null, at);
+    }
 }

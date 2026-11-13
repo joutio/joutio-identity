@@ -122,4 +122,15 @@ public interface UserCommand {
             Instant requestedAt
     ) implements UserCommand {
     }
+
+    /**
+     * Rattache le joueur à son parrain. Préparée par l'appelant : {@code referrerId} résolu depuis le code, parrain
+     * existant et non suspendu. Une seule fois, dans les 30 jours suivant l'inscription, jamais soi-même.
+     */
+    record ApplyReferralCommand(
+            @TargetAggregateIdentifier String userId,
+            String referrerId,
+            Instant requestedAt
+    ) implements UserCommand {
+    }
 }

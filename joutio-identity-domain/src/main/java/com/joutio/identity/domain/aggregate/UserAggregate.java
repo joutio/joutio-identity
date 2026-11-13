@@ -4,12 +4,14 @@ import com.joutio.identity.domain.command.UserCommand;
 import com.joutio.identity.domain.event.UserEvent;
 import com.joutio.identity.domain.exception.BirthDateProblems;
 import com.joutio.identity.domain.exception.PremiumProblems;
+import com.joutio.identity.domain.exception.ReferralProblems;
 import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.exception.UserReportProblems;
 import com.joutio.identity.domain.model.AccountStatus;
 import com.joutio.identity.domain.model.AccountStatusRules;
 import com.joutio.identity.domain.model.BirthDateRules;
 import com.joutio.identity.domain.model.PremiumRules;
+import com.joutio.identity.domain.model.ReferralRules;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.model.UserReportRules;
@@ -58,6 +60,11 @@ public class UserAggregate {
 
     /** Privée : jamais portée par un événement public autre que {@link UserEvent.UserBirthDateSetEvent}. */
     private LocalDate birthDate;
+
+    private Instant registeredAt;
+
+    /** Parrain, une fois le code appliqué. */
+    private String referredBy;
 
     // Constructeur par défaut requis par Axon
     protected UserAggregate() {
@@ -256,6 +263,36 @@ public class UserAggregate {
                 requestedAt));
     }
 
+    @CommandHandler
+    public void handle(UserCommand.ApplyReferralCommand command) {
+        if (status == AccountStatus.DELETED || JoutioConstants.SYSTEM_USER_ID.equals(userId)) {
+            throw new ReferralProblems.InvalidReferralCodeProblem(userId);
+        }
+        if (command.referrerId() == null || command.referrerId().isBlank()
+                || JoutioConstants.SYSTEM_USER_ID.equals(command.referrerId())) {
+            throw new ReferralProblems.InvalidReferralCodeProblem(userId);
+        }
+        if (command.referrerId().equals(userId)) {
+            throw new ReferralProblems.SelfReferralProblem(userId);
+        }
+        if (command.referrerId().equals(referredBy)) {
+            return;
+        }
+        if (referredBy != null) {
+            throw new ReferralProblems.AlreadyReferredProblem(userId);
+        }
+        Instant requestedAt = command.requestedAt() == null ? Instant.now() : command.requestedAt();
+        if (!ReferralRules.withinWindow(registeredAt, requestedAt)) {
+            throw new ReferralProblems.ReferralWindowClosedProblem(userId);
+        }
+        AggregateLifecycle.apply(new UserEvent.UserReferredEvent(userId, command.referrerId(), requestedAt));
+    }
+
+    @EventSourcingHandler
+    public void on(UserEvent.UserReferredEvent event) {
+        this.referredBy = event.referrerId();
+    }
+
     @EventSourcingHandler
     public void on(UserEvent.UserBirthDateSetEvent event) {
         this.birthDate = event.birthDate();
@@ -267,6 +304,7 @@ public class UserAggregate {
         this.userId = event.userId();
         this.email = event.email();
         this.status = AccountStatus.ACTIVE;
+        this.registeredAt = event.createdAt();
 
         if (event.provider() != null) {
             this.linkedSocialAccounts.add(event.provider());

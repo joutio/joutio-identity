@@ -125,4 +125,15 @@ public interface UserEvent {
             Instant setAt
     ) implements UserEvent {
     }
+
+    /**
+     * Événement émis lorsqu'un joueur est rattaché à son parrain. {@code joutio-social} y abonne le filleul au
+     * parrain ; {@code joutio-profile} crédite le badge Recruteur quand le filleul termine son premier duel.
+     */
+    record UserReferredEvent(
+            String userId,
+            String referrerId,
+            Instant referredAt
+    ) implements UserEvent {
+    }
 }
