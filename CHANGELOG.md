@@ -1,3 +1,13 @@
+## [2.0.0](https://github.com/joutio/joutio-identity/compare/v1.3.0...v2.0.0) (2026-11-14)
+
+### ⚠ BREAKING CHANGES
+
+* **identity:** remove the referral feature (codes, sponsor attribution, UserReferredEvent)
+
+### Features
+
+* **identity:** remove the referral feature (codes, sponsor attribution, UserReferredEvent) ([acf6cff](https://github.com/joutio/joutio-identity/commit/acf6cffcbad22e49919d8eda299c4f84d88f85f3))
+
 ## [1.3.0](https://github.com/joutio/joutio-identity/compare/v1.2.2...v1.3.0) (2026-11-13)
 
 ### Features
