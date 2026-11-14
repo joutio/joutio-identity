@@ -1,3 +1,9 @@
+## [2.1.0](https://github.com/joutio/joutio-identity/compare/v2.0.0...v2.1.0) (2026-11-14)
+
+### Features
+
+* **identity:** announce the suspension reason code on the suspended-account refusal ([2438b6a](https://github.com/joutio/joutio-identity/commit/2438b6ad7bf7c38d9e418cec71dd1b883f6399e4))
+
 ## [2.0.0](https://github.com/joutio/joutio-identity/compare/v1.3.0...v2.0.0) (2026-11-14)
 
 ### ⚠ BREAKING CHANGES
