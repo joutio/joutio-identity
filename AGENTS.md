@@ -215,6 +215,7 @@ doit être déployé **avant** le BFF qui émet ces filtres.
 | `joutio.account-suspension.sweep-interval-ms` | Fréquence du balayeur des suspensions temporaires échues (défaut 60 000 ms) |
 | `app.mail.api-key` / `app.mail.from` / `app.mail.base-url` | Envoi des codes OTP via Resend (`JOUTIO_MAIL_API_KEY`, …) |
 | `app.auth.dev-fixed-code` | Code OTP fixe réservé au profil `local`/E2E |
+| `app.auth.load-test.email-domain` / `.code` | **Joueurs synthétiques** (tests de charge) : les emails `@<domain>` reçoivent le code fixe `code` **sans email** (inscription, saga profil et login restent natifs). Vide = désactivé (défaut) ; activé par campagne via `JOUTIO_LOADTEST_EMAIL_DOMAIN`/`JOUTIO_LOADTEST_CODE` (secret `joutio-identity-loadtest`, piloté par `stress-test/bin/campaign.sh`), log `WARN` au démarrage |
 | `app.auth.mobile.client-id` | Client OAuth2 public utilisé par les endpoints natifs (`mobile`) |
 | `app.auth.mobile.google-client-id` | Client OAuth2 **Web** Google : audience des ID tokens du SDK natif |
 | `app.auth.mobile.facebook-app-id` | App ID Facebook : audience des ID tokens Limited Login (iOS) et des access tokens Android |

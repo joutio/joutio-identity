@@ -44,6 +44,7 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
     private final RecordUserLoginUseCase recordUserLoginUseCase;
     private final PasswordEncoder passwordEncoder;
     private final String devFixedCode;
+    private final AppProperties.Auth.LoadTest loadTest;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public PasswordlessAuthService(LoginCodeRepositoryPort loginCodeRepository,
@@ -60,6 +61,11 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
         this.recordUserLoginUseCase = recordUserLoginUseCase;
         this.passwordEncoder = passwordEncoder;
         this.devFixedCode = properties.auth().devFixedCode();
+        this.loadTest = properties.auth().loadTest();
+        if (loadTest.enabled()) {
+            logger.warn("Load-test login enabled: emails @{} receive a fixed code without email delivery",
+                    loadTest.emailDomain());
+        }
     }
 
     @Override
@@ -81,7 +87,8 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
             return;
         }
 
-        String code = generateCode();
+        boolean synthetic = isLoadTestEmail(normalized);
+        String code = synthetic ? loadTest.code() : generateCode();
         loginCodeRepository.save(new LoginCode(
                 normalized,
                 passwordEncoder.encode(code),
@@ -90,6 +97,11 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
                 now,
                 null
         ));
+
+        if (synthetic) {
+            // Joueur synthétique (campagne de charge) : aucun email, le code est connu du générateur.
+            return;
+        }
 
         try {
             emailSender.sendLoginCode(normalized, code, LoginCodeRules.TTL);
@@ -156,6 +168,11 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
         } catch (Exception exception) {
             logger.warn("Failed to record login for user {}: {}", userId, exception.getMessage());
         }
+    }
+
+    private boolean isLoadTestEmail(String normalizedEmail) {
+        return loadTest.enabled()
+                && normalizedEmail.endsWith("@" + loadTest.emailDomain().trim().toLowerCase(Locale.ROOT));
     }
 
     private String generateCode() {

@@ -64,7 +64,8 @@ public record AppProperties(
 
     public record Auth(
             @DefaultValue("") String devFixedCode,
-            @DefaultValue Mobile mobile) {
+            @DefaultValue Mobile mobile,
+            @DefaultValue LoadTest loadTest) {
 
         /**
          * Paramètres de la surface d'authentification native mobile.
@@ -73,6 +74,21 @@ public record AppProperties(
                 @DefaultValue("mobile") String clientId,
                 @DefaultValue("") String googleClientId,
                 @DefaultValue("") String facebookAppId) {
+        }
+
+        /**
+         * Joueurs synthétiques des campagnes de charge : les emails du domaine réservé
+         * reçoivent le code fixe {@code code} sans envoi d'email. Inactif tant que l'un des
+         * deux champs est vide (défaut) ; activé par campagne via un secret.
+         */
+        public record LoadTest(
+                @DefaultValue("") String emailDomain,
+                @DefaultValue("") String code) {
+
+            public boolean enabled() {
+                return emailDomain != null && !emailDomain.isBlank()
+                        && code != null && !code.isBlank();
+            }
         }
     }
 

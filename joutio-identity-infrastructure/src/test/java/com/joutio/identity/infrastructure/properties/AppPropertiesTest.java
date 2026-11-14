@@ -43,6 +43,7 @@ class AppPropertiesTest {
             assertThat(properties.jwk().jwkSet()).isEmpty();
             assertThat(properties.jwk().generateIfMissing()).isFalse();
             assertThat(properties.auth().devFixedCode()).isEmpty();
+            assertThat(properties.auth().loadTest().enabled()).isFalse();
             assertThat(properties.auth().mobile().clientId()).isEqualTo("mobile");
             assertThat(properties.auth().mobile().googleClientId()).isEmpty();
             assertThat(properties.auth().mobile().facebookAppId()).isEmpty();

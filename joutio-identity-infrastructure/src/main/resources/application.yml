@@ -142,6 +142,11 @@ app:
       # App ID Facebook : audience des ID tokens Limited Login (iOS) et des
       # access tokens vérifiés côté serveur (Android).
       facebook-app-id: ${JOUTIO_OAUTH2_FACEBOOK_CLIENT_ID:joutio-facebook-app-id}
+    # Joueurs synthétiques (tests de charge) : code fixe pour les emails du domaine réservé,
+    # sans envoi d'email. Vide = désactivé ; activé par campagne (secret identity).
+    load-test:
+      email-domain: ${JOUTIO_LOADTEST_EMAIL_DOMAIN:}
+      code: ${JOUTIO_LOADTEST_CODE:}
   # Seed par défaut : compte système (identity), profil système (profile), sujets starters (theme).
   seed-data:
     enabled: true

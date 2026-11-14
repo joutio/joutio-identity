@@ -59,7 +59,8 @@ class RolesTest {
                         new AppProperties.Security.Session("AUTH_TX", "Lax", false, "/")),
                 new AppProperties.Mail("", "from", "base-url"),
                 new AppProperties.Jwk("", false),
-                new AppProperties.Auth("", new AppProperties.Auth.Mobile("mobile", "", "")),
+                new AppProperties.Auth("", new AppProperties.Auth.Mobile("mobile", "", ""),
+                        new AppProperties.Auth.LoadTest("", "")),
                 new AppProperties.SeedData(false));
         return new Roles(properties);
     }
