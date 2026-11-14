@@ -1,3 +1,9 @@
+## [2.2.0](https://github.com/joutio/joutio-identity/compare/v2.1.0...v2.2.0) (2026-11-14)
+
+### Features
+
+* **identity:** fixed login code for load-test players on a reserved domain ([9def813](https://github.com/joutio/joutio-identity/commit/9def8131cd610d1bdffa801ea3d4a9b00ad28411))
+
 ## [2.1.0](https://github.com/joutio/joutio-identity/compare/v2.0.0...v2.1.0) (2026-11-14)
 
 ### Features
