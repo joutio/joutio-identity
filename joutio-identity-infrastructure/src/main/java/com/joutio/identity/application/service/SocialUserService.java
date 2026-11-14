@@ -85,7 +85,8 @@ public class SocialUserService {
             logger.warn("Social login refused for suspended user: userId={}", user.userId());
             throw new UserReportProblems.AccountSuspendedProblem(
                     user.userId(),
-                    user.suspension() == null ? null : user.suspension().suspendedUntil());
+                    user.suspension() == null ? null : user.suspension().suspendedUntil(),
+                    user.suspension() == null || user.suspension().reason() == null ? null : user.suspension().reason().name());
         }
     }
 

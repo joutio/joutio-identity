@@ -50,7 +50,7 @@ public class AuthExceptionHandler {
     public ResponseEntity<ProblemDetail> handleAccountSuspended(UserReportProblems.AccountSuspendedProblem exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.FORBIDDEN,
-                "Ce compte est suspendu. Consulte l'email reçu pour connaître le motif et l'échéance."
+                "Ce compte est suspendu. Le motif et l'échéance sont indiqués dans la réponse et dans l'email reçu."
         );
         problem.setType(URI.create(exception.getType()));
         problem.setTitle("Compte suspendu");
@@ -59,6 +59,10 @@ public class AuthExceptionHandler {
                 : exception.getContext().get("suspendedUntil");
         if (suspendedUntil != null && !suspendedUntil.toString().isBlank()) {
             problem.setProperty("suspendedUntil", suspendedUntil.toString());
+        }
+        Object reason = exception.getContext() == null ? null : exception.getContext().get("reason");
+        if (reason != null && !reason.toString().isBlank()) {
+            problem.setProperty("suspensionReason", reason.toString());
         }
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
     }

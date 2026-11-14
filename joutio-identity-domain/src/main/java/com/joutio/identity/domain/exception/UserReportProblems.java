@@ -37,11 +37,17 @@ public final class UserReportProblems {
         }
 
         public AccountSuspendedProblem(String userId, Instant suspendedUntil) {
+            this(userId, suspendedUntil, null);
+        }
+
+        /** {@code reason} : code du motif (jamais la note de modération, privée) ; vide si inconnu. */
+        public AccountSuspendedProblem(String userId, Instant suspendedUntil, String reason) {
             super(userId, "urn:joutio:identity:accountSuspended",
                     ProblemCategory.PERMISSION,
                     "Account suspended",
                     "The account is suspended and cannot authenticate",
-                    Map.of("suspendedUntil", suspendedUntil == null ? "" : suspendedUntil.toString()));
+                    Map.of("suspendedUntil", suspendedUntil == null ? "" : suspendedUntil.toString(),
+                            "reason", reason == null ? "" : reason));
         }
     }
 

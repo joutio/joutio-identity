@@ -127,7 +127,8 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
             logger.warn("Login refused for suspended user: userId={}", user.userId());
             throw new UserReportProblems.AccountSuspendedProblem(
                     user.userId(),
-                    user.suspension() == null ? null : user.suspension().suspendedUntil());
+                    user.suspension() == null ? null : user.suspension().suspendedUntil(),
+                    user.suspension() == null || user.suspension().reason() == null ? null : user.suspension().reason().name());
         }
 
         recordUserLogin(user.userId());
