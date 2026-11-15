@@ -38,4 +38,14 @@ public final class BirthDateProblems {
                     "The birth date of a deleted or system account cannot be set");
         }
     }
+
+    /** Acceptation des CGU impossible : compte supprimé ou système, ou version vide. */
+    public static class TermsNotAcceptableProblem extends UserReportProblems.BaseAccountProblem {
+        public TermsNotAcceptableProblem(String userId) {
+            super(userId, "urn:joutio:identity:termsNotAcceptable",
+                    ProblemCategory.BUSINESS_INVALID_COMMAND,
+                    "Terms not acceptable",
+                    "The terms cannot be accepted for this account or this version");
+        }
+    }
 }

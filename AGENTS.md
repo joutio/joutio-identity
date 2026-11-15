@@ -17,6 +17,11 @@
 **Aucun pseudonyme** ici : le profil modifiable (`pseudonym`, `bio`, `country`)
 vit dans `joutio-profile` (créé par saga sur `UserRegisteredEvent`).
 
+**Acceptation des CGU (2026-11-15)** : `AcceptTermsCommand(userId, version, requestedAt)` → `UserTermsAcceptedEvent`
+(idempotent, refusé sur un compte supprimé ou système, `urn:joutio:identity:termsNotAcceptable`). La version et la date
+sont projetées sur `user_entry` (`terms_version`, `terms_accepted_at`, migration V7) : preuve du consentement. Le BFF
+compare la version acceptée à la version en vigueur (`MeView.termsUpToDate`).
+
 **Package** : `com.joutio.identity`
 
 **Sans UI hébergée** : aucune page HTML/Thymeleaf. Toute l'UX est pilotée par la SPA web

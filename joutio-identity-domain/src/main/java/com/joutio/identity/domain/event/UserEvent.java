@@ -125,4 +125,12 @@ public interface UserEvent {
             Instant setAt
     ) implements UserEvent {
     }
+
+    /** Le joueur a accepté la version {@code version} des CGU (2026-11-15). */
+    record UserTermsAcceptedEvent(
+            String userId,
+            String version,
+            Instant acceptedAt
+    ) implements UserEvent {
+    }
 }

@@ -122,4 +122,15 @@ public interface UserCommand {
             Instant requestedAt
     ) implements UserCommand {
     }
+
+    /**
+     * Acceptation explicite d'une version des CGU (2026-11-15, preuve de consentement). Idempotente : la version déjà
+     * acceptée n'émet rien.
+     */
+    record AcceptTermsCommand(
+            @TargetAggregateIdentifier String userId,
+            String version,
+            Instant requestedAt
+    ) implements UserCommand {
+    }
 }

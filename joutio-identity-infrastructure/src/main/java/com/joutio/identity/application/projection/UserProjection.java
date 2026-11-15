@@ -202,4 +202,17 @@ public class UserProjection {
             logger.info("Birth date set: userId={}", event.userId());
         }, () -> logger.warn("Cannot set birth date: user not projected yet, userId={}", event.userId()));
     }
+
+    /** Acceptation des CGU : version et date conservées comme preuve du consentement. */
+    @EventHandler
+    @Transactional
+    public void on(UserEvent.UserTermsAcceptedEvent event) {
+        userRepositoryPort.findById(event.userId()).ifPresentOrElse(user -> {
+            if (user.status() == AccountStatus.DELETED) {
+                return;
+            }
+            userRepositoryPort.save(user.withTermsAccepted(event.version(), event.acceptedAt()));
+            logger.info("Terms {} accepted: userId={}", event.version(), event.userId());
+        }, () -> logger.warn("Cannot record terms acceptance: user not projected yet, userId={}", event.userId()));
+    }
 }

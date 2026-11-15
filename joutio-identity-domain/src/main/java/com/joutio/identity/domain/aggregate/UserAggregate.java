@@ -58,6 +58,8 @@ public class UserAggregate {
 
     /** Privée : jamais portée par un événement public autre que {@link UserEvent.UserBirthDateSetEvent}. */
     private LocalDate birthDate;
+    /** Dernière version des CGU acceptée. */
+    private String termsVersion;
 
     // Constructeur par défaut requis par Axon
     protected UserAggregate() {
@@ -259,6 +261,28 @@ public class UserAggregate {
     @EventSourcingHandler
     public void on(UserEvent.UserBirthDateSetEvent event) {
         this.birthDate = event.birthDate();
+    }
+
+    /** Acceptation des CGU : version non vide (32 caractères au plus), refusée sur un compte supprimé ou système. */
+    @CommandHandler
+    public void handle(UserCommand.AcceptTermsCommand command) {
+        if (status == AccountStatus.DELETED || JoutioConstants.SYSTEM_USER_ID.equals(userId)) {
+            throw new BirthDateProblems.TermsNotAcceptableProblem(userId);
+        }
+        String version = command.version() == null ? "" : command.version().trim();
+        if (version.isEmpty() || version.length() > 32) {
+            throw new BirthDateProblems.TermsNotAcceptableProblem(userId);
+        }
+        if (version.equals(termsVersion)) {
+            return;
+        }
+        AggregateLifecycle.apply(new UserEvent.UserTermsAcceptedEvent(
+                userId, version, command.requestedAt() == null ? Instant.now() : command.requestedAt()));
+    }
+
+    @EventSourcingHandler
+    public void on(UserEvent.UserTermsAcceptedEvent event) {
+        this.termsVersion = event.version();
     }
 
     @EventSourcingHandler

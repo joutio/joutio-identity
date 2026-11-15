@@ -100,4 +100,11 @@ public class UserEntity {
     /** Privée (editer-profil.md § 5). */
     @Column(name = "birth_date")
     private LocalDate birthDate;
+
+    /** Version des CGU acceptée (2026-11-15). */
+    @Column(name = "terms_version", length = 32)
+    private String termsVersion;
+
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
 }

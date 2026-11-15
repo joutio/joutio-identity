@@ -396,6 +396,24 @@ class UserAggregateTest {
     private static final Instant BIRTH_REQUESTED_AT = Instant.parse("2026-11-13T10:00:00Z");
 
     @Test
+    void acceptTerms_recordsTheVersionOnce() {
+        fixture.given(registered())
+                .when(new UserCommand.AcceptTermsCommand("user-8", "2026-11-15", BIRTH_REQUESTED_AT))
+                .expectEvents(new UserEvent.UserTermsAcceptedEvent("user-8", "2026-11-15", BIRTH_REQUESTED_AT));
+
+        fixture.given(registered(), new UserEvent.UserTermsAcceptedEvent("user-8", "2026-11-15", BIRTH_REQUESTED_AT))
+                .when(new UserCommand.AcceptTermsCommand("user-8", "2026-11-15", BIRTH_REQUESTED_AT))
+                .expectNoEvents();
+    }
+
+    @Test
+    void acceptTerms_blankVersion_isRefused() {
+        fixture.given(registered())
+                .when(new UserCommand.AcceptTermsCommand("user-8", " ", BIRTH_REQUESTED_AT))
+                .expectException(com.joutio.identity.domain.exception.BirthDateProblems.TermsNotAcceptableProblem.class);
+    }
+
+    @Test
     void setBirthDate_fifteenToday_appliesEvent() {
         java.time.LocalDate birthDate = java.time.LocalDate.parse("2011-11-13");
         fixture.given(registered())
