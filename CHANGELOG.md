@@ -1,3 +1,9 @@
+## [2.3.0](https://github.com/joutio/joutio-identity/compare/v2.2.0...v2.3.0) (2026-11-15)
+
+### Features
+
+* **user:** record the acceptance of the terms of use ([47aecce](https://github.com/joutio/joutio-identity/commit/47aeccef9a9913aff63d804b717932d6e91a9bd0))
+
 ## [2.2.0](https://github.com/joutio/joutio-identity/compare/v2.1.0...v2.2.0) (2026-11-14)
 
 ### Features
