@@ -123,13 +123,20 @@ Erreurs : `ProblemDetail` (`type`, `title`, `detail`, `status`) ; `401` code/Goo
 - `/.well-known/openid-configuration`, `/connect/logout`
 - Social : `/oauth2/authorization/google` -> `/login/oauth2/code/google` et
   `/oauth2/authorization/facebook` -> `/login/oauth2/code/facebook`
-  (succès -> redirection SPA `app.security.oauth2.success-redirect-uri`).
+  (succès -> redirection SPA `app.security.oauth2.success-redirect-uri`, ou `/sign-in/continue` depuis la page des
+  outils).
 
-En cas de non-authentification sur `/oauth2/authorize` : `302` vers la SPA
-(`app.security.login-page-uri`) pour HTML, sinon `401` JSON. **Jamais de page `/login` serveur.**
-L'URL d'autorisation d'origine est transmise en `?continue=` (`SpaLoginRedirectEntryPoint`) :
-la SPA la reprend après login pour rejoindre le client tiers (Grafana, ArgoCD, anciens APK
-mobiles…).
+En cas de non-authentification sur `/oauth2/authorize` (HTML ; sinon `401` JSON), la page de connexion dépend du
+client (`ClientLoginEntryPoint`, 2026-11-16) :
+
+- **Joueurs** (`web`, `mobile`) : `302` vers l'app (`app.security.login-page-uri`), dont le parcours personnalisé
+  ouvre la session puis enchaîne son propre PKCE. Plus de `?continue=`.
+- **Outils techniques** (`app.security.tool-clients` : `console`, `grafana`, `argocd`, `swagger`) : `302` vers
+  **`/sign-in`**, page sobre hébergée par identity (`resources/sign-in/index.html`, jetons du design system, FR/EN).
+  Code par email sur l'API web (`/api/auth/web/request-login-code`, `login-with-code`) ou Google
+  (`/sign-in/google` pose une marque de session, `SocialLoginHandlers` ramène sur la page des outils). Une fois la
+  session ouverte, `/sign-in/continue` reprend l'autorisation mémorisée par Spring Security (`HttpSessionRequestCache`).
+  La page générée par `oauth2Login` sur `/login` reste neutralisée.
 
 ### Routes internes
 
@@ -226,7 +233,8 @@ doit être déployé **avant** le BFF qui émet ces filtres.
 | `app.auth.mobile.facebook-app-id` | App ID Facebook : audience des ID tokens Limited Login (iOS) et des access tokens Android |
 | `spring.security.oauth2.client.registration.facebook` | Client Facebook web (OAuth2 + Graph, scopes `public_profile,email`) — secret via `JOUTIO_OAUTH2_FACEBOOK_SECRET` |
 | `app.jwk.jwk-set` | JWK Set JSON partagée (secret `JOUTIO_IDENTITY_JWK`) |
-| `app.security.login-page-uri` | SPA login (entry point non authentifié) |
+| `app.security.login-page-uri` | Connexion de l'app pour les clients joueurs (entry point non authentifié) |
+| `app.security.tool-clients` | Clients des outils techniques, connectés sur `/sign-in` (défaut `console,grafana,argocd,swagger`) |
 | `app.security.oauth2.success-redirect-uri` / `failure-redirect-uri` | Retour social |
 | `app.security.cors.allowed-origins` | Origine SPA (credentials) |
 | `app.security.session.cookie-*` | Cookie `AUTH_TX` (name/same-site/secure) |

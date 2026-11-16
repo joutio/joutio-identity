@@ -7,7 +7,9 @@ import com.joutio.identity.infrastructure.security.FacebookOAuth2UserService;
 import com.joutio.identity.infrastructure.security.OAuth2UserServiceImpl;
 import com.joutio.identity.infrastructure.security.PublicClientRefreshTokenAuthenticationConverter;
 import com.joutio.identity.infrastructure.security.PublicClientRefreshTokenAuthenticationProvider;
-import com.joutio.identity.infrastructure.security.SpaLoginRedirectEntryPoint;
+import com.joutio.identity.infrastructure.security.ClientLoginEntryPoint;
+import com.joutio.identity.infrastructure.security.HostedSignIn;
+import com.joutio.identity.infrastructure.security.SocialLoginHandlers;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,7 +24,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
@@ -30,7 +31,6 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
@@ -38,17 +38,17 @@ import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
+import java.util.Set;
 
 /**
- * Serveur d'autorisation OAuth2/OpenID Connect sans interface hébergée.
+ * Serveur d'autorisation OAuth2/OpenID Connect.
  * <p>
- * Toute l'UX est pilotée par la SPA/mobile : le mot de passe est établi par
- * l'API JSON ({@code /api/auth/**}) qui crée une session temporaire
- * (Spring Session JDBC, cookie {@code AUTH_TX}), puis le pipeline standard
- * Authorization Code + PKCE produit les tokens.
+ * Joueurs : l'UX est portée par l'app (web, mobile) ; l'API JSON ({@code /api/auth/**}) ouvre une session
+ * (Spring Session JDBC, cookie {@code AUTH_TX}), puis le pipeline standard Authorization Code + PKCE produit les
+ * tokens. Outils techniques ({@code app.security.tool-clients}) : page de connexion hébergée par identity
+ * ({@link HostedSignIn}), sur la même API et la même session.
  */
 @Configuration
 @EnableWebSecurity
@@ -61,6 +61,7 @@ public class AuthorizationServerConfig {
     private final String oauth2SuccessRedirectUri;
     private final String oauth2FailureRedirectUri;
     private final List<String> corsAllowedOrigins;
+    private final Set<String> toolClients;
 
     public AuthorizationServerConfig(
             OAuth2UserServiceImpl oAuth2UserService,
@@ -72,6 +73,7 @@ public class AuthorizationServerConfig {
         this.oauth2SuccessRedirectUri = properties.security().oauth2().successRedirectUri();
         this.oauth2FailureRedirectUri = properties.security().oauth2().failureRedirectUri();
         this.corsAllowedOrigins = properties.security().cors().allowedOrigins();
+        this.toolClients = Set.copyOf(properties.security().toolClients());
     }
 
     @Bean
@@ -98,7 +100,7 @@ public class AuthorizationServerConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .exceptionHandling(exceptions -> exceptions
                         .defaultAuthenticationEntryPointFor(
-                                new SpaLoginRedirectEntryPoint(loginPageUri),
+                                new ClientLoginEntryPoint(loginPageUri, toolClients),
                                 new MediaTypeRequestMatcher(MediaType.TEXT_HTML))
                         .defaultAuthenticationEntryPointFor(
                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
@@ -129,10 +131,22 @@ public class AuthorizationServerConfig {
 
     @Bean
     @Order(3)
+    public SecurityFilterChain hostedSignInSecurityFilterChain(HttpSecurity http) throws Exception {
+        // Page de connexion des outils techniques, sa reprise d'autorisation et son départ vers Google : publics, en
+        // lecture seule (GET), sur la session HTTP où l'autorisation de l'outil a été mémorisée.
+        http
+                .securityMatcher(HostedSignIn.PATH, HostedSignIn.PATH + "/**")
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(4)
     public SecurityFilterChain disabledServerLoginPageSecurityFilterChain(HttpSecurity http) throws Exception {
-        // Aucune page de login n'est hébergée par le serveur : l'URL /login est
-        // neutralisée pour supprimer la page générée par oauth2Login. Toute l'UX
-        // est portée par la SPA (redirection via l'entry point + API JSON).
+        // La page générée par oauth2Login sur /login est neutralisée : les joueurs se connectent dans l'app, les
+        // outils sur la page hébergée (HostedSignIn).
         http
                 .securityMatcher("/login")
                 .csrf(AbstractHttpConfigurer::disable)
@@ -142,7 +156,7 @@ public class AuthorizationServerConfig {
     }
 
     @Bean
-    @Order(4)
+    @Order(5)
     public SecurityFilterChain defaultSecurityFilterChain(
             HttpSecurity http,
             CorsConfigurationSource corsConfigurationSource) throws Exception {
@@ -178,25 +192,8 @@ public class AuthorizationServerConfig {
                         .userInfoEndpoint(userInfo -> userInfo
                                 .oidcUserService(oAuth2UserService)
                                 .userService(facebookOAuth2UserService))
-                        .successHandler(new SimpleUrlAuthenticationSuccessHandler(oauth2SuccessRedirectUri))
-                        .failureHandler((request, response, exception) -> {
-                            String errorCode = "oauth2";
-                            if (exception instanceof OAuth2AuthenticationException oauth2Exception) {
-                                String providerError = oauth2Exception.getError().getErrorCode();
-                                if ("account_suspended".equals(providerError)) {
-                                    errorCode = "account_suspended";
-                                } else if (FacebookOAuth2UserService.EMAIL_MISSING_ERROR_CODE
-                                        .equals(providerError)) {
-                                    errorCode = "facebook_email_missing";
-                                }
-                            }
-                            String target = UriComponentsBuilder
-                                    .fromUriString(oauth2FailureRedirectUri)
-                                    .replaceQueryParam("error", errorCode)
-                                    .build()
-                                    .toUriString();
-                            response.sendRedirect(target);
-                        }));
+                        .successHandler(SocialLoginHandlers.success(oauth2SuccessRedirectUri))
+                        .failureHandler(SocialLoginHandlers.failure(oauth2FailureRedirectUri)));
 
         return http.build();
     }

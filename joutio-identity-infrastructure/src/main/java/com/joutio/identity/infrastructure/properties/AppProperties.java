@@ -32,7 +32,9 @@ public record AppProperties(
             @DefaultValue("http://localhost:5173/login") String loginPageUri,
             @DefaultValue OAuth2 oauth2,
             @DefaultValue Cors cors,
-            @DefaultValue Session session) {
+            @DefaultValue Session session,
+            /** Clients OAuth2 des outils techniques : connexion hébergée par identity, pas celle de l'app. */
+            @DefaultValue({"console", "grafana", "argocd", "swagger"}) List<String> toolClients) {
 
         public record OAuth2(
                 @DefaultValue("http://localhost:5173/login?social=success") String successRedirectUri,
