@@ -1,3 +1,9 @@
+## [2.4.0](https://github.com/joutio/joutio-identity/compare/v2.3.0...v2.4.0) (2026-11-16)
+
+### Features
+
+* **identity:** hosted sign-in page for the technical tools ([a318041](https://github.com/joutio/joutio-identity/commit/a318041923d499c1f09615e1734c3ff98e483293))
+
 ## [2.3.0](https://github.com/joutio/joutio-identity/compare/v2.2.0...v2.3.0) (2026-11-15)
 
 ### Features
