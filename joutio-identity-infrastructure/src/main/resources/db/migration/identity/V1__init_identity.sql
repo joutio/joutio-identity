@@ -1,19 +1,19 @@
--- Joutio identity — baseline schema (squashed from V1..V5)
--- Generated from a fresh PostgreSQL 16 database after applying the legacy migrations.
+-- Joutio identity — schéma complet (pg_dump, PostgreSQL 16).
+-- V1 unique avant l'ouverture publique : toute évolution modifie ce fichier et impose une remise à zéro
+-- de la base (docs/backend/conventions.md, section Base de données).
 
 --
 -- PostgreSQL database dump
 --
 
 
--- Dumped from database version 16.13
--- Dumped by pg_dump version 16.13
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
@@ -33,7 +33,7 @@ CREATE TABLE public.account_deletion_audit (
     requested_at timestamp without time zone NOT NULL,
     completed_at timestamp without time zone,
     status character varying(20) NOT NULL,
-    CONSTRAINT chk_account_deletion_status CHECK (((status)::text = ANY ((ARRAY['REQUESTED'::character varying, 'COMPLETED'::character varying, 'FAILED'::character varying])::text[])))
+    CONSTRAINT chk_account_deletion_status CHECK (((status)::text = ANY (ARRAY[('REQUESTED'::character varying)::text, ('COMPLETED'::character varying)::text, ('FAILED'::character varying)::text])))
 );
 
 
@@ -237,7 +237,14 @@ CREATE TABLE public.user_entry (
     reinstated_by character varying(255),
     reinstatement_reason character varying(20),
     reinstatement_note character varying(500),
-    CONSTRAINT chk_user_entry_status CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying])::text[])))
+    premium_source character varying(20),
+    premium_until timestamp without time zone,
+    premium_granted_by character varying(255),
+    premium_granted_at timestamp without time zone,
+    birth_date date,
+    terms_version character varying(32),
+    terms_accepted_at timestamp without time zone,
+    CONSTRAINT chk_user_entry_status CHECK (((status)::text = ANY (ARRAY[('ACTIVE'::character varying)::text, ('SUSPENDED'::character varying)::text, ('DELETED'::character varying)::text])))
 );
 
 
@@ -288,6 +295,34 @@ COMMENT ON COLUMN public.user_entry.suspension_note IS 'Note interne de modérat
 --
 
 COMMENT ON COLUMN public.user_entry.suspended_until IS 'Échéance de la suspension ; NULL = suspension définitive';
+
+
+--
+-- Name: COLUMN user_entry.premium_source; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_entry.premium_source IS 'Origine du droit Premium (MANUAL, APP_STORE, PLAY, WEB) ; NULL = aucun droit';
+
+
+--
+-- Name: COLUMN user_entry.premium_until; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_entry.premium_until IS 'Échéance du droit Premium ; NULL avec une source = sans échéance';
+
+
+--
+-- Name: COLUMN user_entry.birth_date; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_entry.birth_date IS 'Date de naissance (privée), 15 ans minimum ; NULL = non renseignée';
+
+
+--
+-- Name: COLUMN user_entry.terms_version; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_entry.terms_version IS 'Version des CGU acceptée ; NULL = jamais acceptées explicitement';
 
 
 --
@@ -365,8 +400,8 @@ CREATE TABLE public.user_report (
     reviewed_by character varying(255),
     reviewed_at timestamp without time zone,
     resolution_note character varying(500),
-    CONSTRAINT chk_user_report_context CHECK (((context)::text = ANY ((ARRAY['PROFILE'::character varying, 'GAME'::character varying])::text[]))),
-    CONSTRAINT chk_user_report_status CHECK (((status)::text = ANY ((ARRAY['OPEN'::character varying, 'RESOLVED'::character varying, 'DISMISSED'::character varying])::text[])))
+    CONSTRAINT chk_user_report_context CHECK (((context)::text = ANY (ARRAY[('PROFILE'::character varying)::text, ('GAME'::character varying)::text]))),
+    CONSTRAINT chk_user_report_status CHECK (((status)::text = ANY (ARRAY[('OPEN'::character varying)::text, ('RESOLVED'::character varying)::text, ('DISMISSED'::character varying)::text])))
 );
 
 
@@ -384,7 +419,7 @@ COMMENT ON TABLE public.user_report IS 'Signalements de joueurs (file de modéra
 CREATE TABLE public.user_report_reason (
     report_id character varying(255) NOT NULL,
     reason character varying(32) NOT NULL,
-    CONSTRAINT chk_user_report_reason CHECK (((reason)::text = ANY ((ARRAY['HARASSMENT'::character varying, 'HATE_SPEECH'::character varying, 'INAPPROPRIATE_CONTENT'::character varying, 'CHEATING'::character varying, 'SPAM'::character varying, 'OTHER'::character varying])::text[])))
+    CONSTRAINT chk_user_report_reason CHECK (((reason)::text = ANY (ARRAY[('HARASSMENT'::character varying)::text, ('HATE_SPEECH'::character varying)::text, ('INAPPROPRIATE_CONTENT'::character varying)::text, ('CHEATING'::character varying)::text, ('SPAM'::character varying)::text, ('OTHER'::character varying)::text])))
 );
 
 

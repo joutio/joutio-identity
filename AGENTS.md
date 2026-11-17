@@ -1,260 +1,136 @@
 # AGENTS.md — joutio-identity
 
-> Service **référence** des patterns hexagonaux Joutio (patterns purs : pas de sous-agrégat, pas
-> de saga). Architecture : Axon Framework (CQRS/EDA) + JPA (projections) + Spring Security
-> OAuth2 (Authorization Server / IdP).
-> Pour les règles de patterns : [
-`../../best-practices/.backend/folder-structure.md`](../../best-practices/.backend/folder-structure.md).
+**IdP** de la plateforme et source de vérité du **compte** : serveur d'autorisation OIDC, connexion
+sans mot de passe (OTP par email) ou sociale (Google, Facebook), date de naissance, CGU, statut
+de compte et suspension, signalements de joueurs, droit **Premium**. Package `com.joutio.identity`,
+base `joutio_identity`, port local 8085.
 
----
+Lire : `../../AGENTS.md`, [`docs/backend/`](../../docs/backend/hexagonal.md), le
+[contexte compte](../../docs/architecture.md#identité-compte-et-droits). Aucun pseudonyme ici : le
+profil vit dans `joutio-profile`.
 
-## 1. Rôle
+## Périmètre
 
-**IdP** de la plateforme : serveur d'autorisation OIDC (**Authorization Code + PKCE**,
-`oidc-react`/`oidc-client-ts` côté client) et gestion de l'identité **immuable**
-(email, providers sociaux liés). **Aucun mot de passe** : l'authentification est
-**passwordless** (code à usage unique OTP envoyé par email) ou **sociale** (Google, Facebook).
-**Aucun pseudonyme** ici : le profil modifiable (`pseudonym`, `bio`, `country`)
-vit dans `joutio-profile` (créé par saga sur `UserRegisteredEvent`).
+- **Seul service à garder du REST** (OIDC et API d'authentification). Sans UI hébergée, sauf la
+  page `/sign-in` des outils techniques.
+- Agrégats :
+  - `UserAggregate` : inscription, providers liés, connexions, date de naissance, CGU, Premium,
+    suspension, suppression ;
+  - `UserReportThreadAggregate` : un fil par paire signalé × signalant, un seul `OPEN` à la fois.
+- Aucune dépendance sortante vers un autre service.
 
-**Acceptation des CGU (2026-11-15)** : `AcceptTermsCommand(userId, version, requestedAt)` → `UserTermsAcceptedEvent`
-(idempotent, refusé sur un compte supprimé ou système, `urn:joutio:identity:termsNotAcceptable`). La version et la date
-sont projetées sur `user_entry` (`terms_version`, `terms_accepted_at`, migration V7) : preuve du consentement. Le BFF
-compare la version acceptée à la version en vigueur (`MeView.termsUpToDate`).
-
-**Package** : `com.joutio.identity`
-
-**Sans UI hébergée** : aucune page HTML/Thymeleaf. Toute l'UX est pilotée par la SPA web
-(login OTP + OIDC navigateur) et par le mobile (écran natif OTP + Google + Facebook). La surface
-applicative d'auth est **préfixée par client** (`/api/auth/web/**`, `/api/auth/mobile/**`) ;
-les endpoints du protocole OIDC (`/oauth2/**`) restent standard et non préfixés.
-
-### Pipeline d'authentification
+## Authentification
 
 ```text
-Web
-  POST /api/auth/web/request-login-code   {email} -> 202
-  email contenant un code à 6 chiffres (Resend)
-  POST /api/auth/web/login-with-code      {email, code} -> 200 {userId,email} + cookie AUTH_TX
-  GET  /oauth2/authorize                  (session trouvée -> authorization code)
-  POST /oauth2/token + code_verifier      -> access_token + id_token
-
-Mobile
-  POST /api/auth/mobile/request-login-code {email} -> 202
-  POST /api/auth/mobile/login-with-code    {email, code} -> session (access + refresh tokens)
-  ou POST /api/auth/mobile/login-with-google {idToken} -> session (access + refresh tokens)
-  ou POST /api/auth/mobile/login-with-facebook {idToken,nonce} (iOS)
-                                             ou {accessToken} (Android) -> session
-  POST /oauth2/token (grant_type=refresh_token) -> rotation
-  POST /api/auth/mobile/logout             {refreshToken} -> 204
+Web     POST /api/auth/web/request-login-code {email} → 202 (anti-énumération)
+        POST /api/auth/web/login-with-code {email, code} → 200 {userId,email} + cookie AUTH_TX
+        GET  /oauth2/authorize (session trouvée) → code ; POST /oauth2/token + code_verifier → jetons
+        GET  /api/auth/web/start-google-login | start-facebook-login → 302 ; POST /api/auth/web/logout → 204
+Mobile  POST /api/auth/mobile/request-login-code | login-with-code → {userId,email,accessToken,refreshToken,tokenType,expiresIn}
+        POST /api/auth/mobile/login-with-google {idToken} | login-with-facebook {idToken,nonce} (iOS) ou {accessToken} (Android)
+        POST /oauth2/token (refresh_token, rotation) ; POST /api/auth/mobile/logout {refreshToken} → 204
+OIDC    /oauth2/{authorize,token,jwks,revoke,introspect}, /.well-known/openid-configuration, /connect/logout
 ```
 
-Facebook web utilise le flux OAuth2 classique + Graph API (pas OIDC). Le mobile iOS
-utilise Limited Login (ID token OIDC), le mobile Android le login classique (access token
-vérifié côté serveur via `/debug_token` + `/me`). Si Facebook ne retourne pas d'email,
-la connexion est refusée et le client propose le repli OTP.
+- La première connexion **crée le compte**. L'API web ne renvoie jamais de JWT ; le mobile reçoit
+  les jetons directement (grant `urn:joutio:native`, sessions dans `oauth2_authorization`).
+- Une API d'auth **orientée action** (`request-login-code`, `login-with-code`…), assumée pour la
+  lisibilité.
+- Sans session sur `/oauth2/authorize` :
+  - clients joueurs (`web`, `mobile`) → redirection vers la connexion de l'app
+    (`app.security.login-page-uri`) ;
+  - outils (`app.security.tool-clients` : `console`, `grafana`, `argocd`, `swagger`) → page
+    `/sign-in` (OTP ou Google), puis `/sign-in/continue`.
+- Facebook sans email → refus, le client propose l'OTP.
+- Erreurs `ProblemDetail` :
+  - `401` code ou jeton social invalide ;
+  - `403` compte suspendu (`suspendedUntil`) ;
+  - `422` email Facebook manquant ;
+  - `503` fournisseur social indisponible.
+- **JWT** (`JwtTokenCustomizer`) : `sub`, `email`, `user_email`, `user_id`, `roles`, `aud`
+  (optionnel), **sans claim `name`**. Rôles (`Roles.forUser`) :
+  - `ROLE_USER` pour tous ;
+  - `ROLE_ADMIN` pour le compte système et `app.authorization-server.admin-emails`.
 
-Le premier login **crée le compte** (plus d'étape `/register`). L'API web ne retourne jamais de
-JWT ; les endpoints mobiles retournent directement les tokens OAuth2 (mêmes JWT/claims que le
-flux web, sans ID token).
+## Règles métier
 
-Les sessions mobiles sont persistées dans `oauth2_authorization` avec le grant
-`urn:joutio:native` ; le refresh standard `/oauth2/token` les fait tourner et le logout les
-révoque. Le client public `mobile` conserve aussi ses redirect URIs (`joutio://callback`) pour
-les anciens APK qui utilisent encore le flux navigateur : leur login reste fonctionnel via la
-page web mise à jour, mais leur logout appelle l'ancien endpoint supprimé (la session locale
-est purgée, le refresh token n'est plus révoqué côté identity).
+- **Compte système** (`JoutioConstants.SYSTEM_USER_ID`) : unique, admin et bot, sans credential,
+  non connectable, seedé par `DataSeeder`. Jamais suspendable ni Premium.
+- **Date de naissance** (`SetBirthDateCommand`) : 15 ans minimum (`urn:joutio:identity:underage`),
+  privée.
+- **CGU** (`AcceptTermsCommand`) : idempotent, version et date projetées. La comparaison avec la
+  version en vigueur est faite par le BFF.
+- **Suspension** (`SuspendUserCommand`, `ReinstateUserCommand`) :
+  - décision exclusivement admin, double suspension refusée, réintégration idempotente ;
+  - une échéance passée vaut actif à la lecture (`AccountStatusRules`), avant même que
+    `SuspensionExpirySweeper` réintègre ;
+  - à la suspension : sessions `AUTH_TX` et autorisations OAuth2 supprimées, OTP, social et refresh
+    refusés (`invalid_grant account_suspended`), email envoyé (la note reste interne).
+- **Premium** (`GrantPremiumCommand`, `RevokePremiumCommand`) :
+  - `premiumUntil` nul = sans échéance ;
+  - `PremiumSource` ∈ `MANUAL|APP_STORE|PLAY|WEB` (seul `MANUAL` est émis aujourd'hui) ;
+  - Grant idempotent sur un droit identique, Revoke idempotent ;
+  - `GetUserEntitlementsQuery` → `premium` = droit actif **ou** `ROLE_ADMIN`, faux si le compte est
+    suspendu (`PremiumRules`).
+- **Suppression de compte** (`DeleteAccountCommand`, code OTP dédié) → `UserAccountDeletedEvent`,
+  nettoyage des sessions et effacement de l'event store.
+- **Signalements** (`ReportUserCommand`, `ResolveUserReportCommand`) : snapshot du pseudonyme et
+  de l'avatar, contexte `PROFILE|GAME`. Pas d'auto-suspension.
 
-### Compte système unique
+## Contrats (`joutio-identity-domain`)
 
-`JoutioConstants.SYSTEM_USER_ID` / `SYSTEM_USER_EMAIL` (`joutio.contacts@gmail.com`) est un compte
-**unique** (admin + bot), **sans credential**, non connectable (exclu du flux OTP). Il est seedé par
-`DataSeeder` (`registerUser`, `app.seed-data.enabled`).
+- Événements :
+  - `UserRegisteredEvent` → profile (saga de création) ;
+  - `UserLoggedInEvent` ;
+  - `SocialProviderLinkedEvent` ;
+  - `UserBirthDateSetEvent` ;
+  - `UserTermsAcceptedEvent` ;
+  - `UserPremiumGranted/RevokedEvent` → BFF (purge de cache) ;
+  - `UserSuspendedEvent` → notification (inbox) et BFF ;
+  - `UserReinstatedEvent` ;
+  - `UserReportedEvent` ;
+  - `UserReportReviewedEvent` ;
+  - `UserAccountDeletedEvent` → tous les services concernés.
+- Requêtes `UserQuery.*` :
+  - `GetUserQuery`, `FindUserQuery`, `FindUserByEmailQuery`, `GetUsersByIdsQuery` ;
+  - `GetUserAccountStatus(es)Query`, `GetUserEntitlementsQuery` ;
+  - `UserSearchQuery`, avec les filtres admin `status` (suspension effective) et `reported` ;
+  - `UserReportQuery.*`.
 
-### Multi-instance (N instances, sans sticky session)
+## Multi-instance
 
-- **Sessions** : Spring Session JDBC, cookie `AUTH_TX` (host-only) — `SessionConfig`.
-- **Codes OTP** : table `user_login_code` (hash BCrypt, TTL, tentatives, usage unique) → partagés.
-- **Clients OAuth2 entrants** : déclarés via les propriétés **standard** Spring Boot
-  `spring.security.oauth2.authorizationserver.client.*` (`application.yml` + redirect URIs
-  par profil), exposés en **in-memory** (`InMemoryRegisteredClientRepository`) par
-  `OAuth2ClientConfig` (secret encodé BCrypt, cf. plus bas).
-- **Authorization codes, tokens, consentements** : JDBC
-  (`JdbcOAuth2AuthorizationService`, `JdbcOAuth2AuthorizationConsentService`) —
-  `OAuth2PersistenceConfig` (état dynamique partagé entre instances ; le registre de
-  clients, lui, est statique et identique sur chaque pod).
-- **Clés de signature JWT partagées** : JWK Set fournie par le secret Kubernetes
-  (`JOUTIO_IDENTITY_JWK` -> `app.jwk.jwk-set`) ; fallback éphémère réservé au profil `local`.
+- Sessions Spring Session JDBC (cookie `AUTH_TX`).
+- Codes OTP en base : hash BCrypt, TTL, tentatives, usage unique.
+- Codes, jetons et consentements OAuth2 en JDBC.
+- Clients OAuth2 déclarés par `spring.security.oauth2.authorizationserver.client.*`, en mémoire :
+  identiques sur chaque pod, et un rollout suffit à les mettre à jour.
+- Clé de signature partagée par `JOUTIO_IDENTITY_JWK` (`app.jwk.jwk-set`) ; clé éphémère en profil
+  `local` seulement.
 
----
-
-## 2. Endpoints
-
-### API d'authentification par client
-
-> **Exception auth** : les endpoints sont volontairement **orientés action** pour que le cas
-> soit lisible à la lecture (`request-login-code`, `login-with-code`, `login-with-google`,
-> `start-google-login`, `logout`). Les autres ressources du service restent orientées
-> ressources (`GET /{id}`, transitions `POST /{id}/{action}`).
-
-**Web** (`WebAuthController`) — session cookie + OIDC navigateur :
-
-- `POST /api/auth/web/request-login-code` `{email}` -> `202` (anti-énumération)
-- `POST /api/auth/web/login-with-code` `{email, code}` -> `200 {userId,email}` + cookie `AUTH_TX`
-- `GET /api/auth/web/start-google-login` -> `302 /oauth2/authorization/google`
-- `GET /api/auth/web/start-facebook-login` -> `302 /oauth2/authorization/facebook`
-- `POST /api/auth/web/logout` `{refreshToken?}` -> `204`
-
-**Mobile** (`MobileAuthController`) — tokens natifs, sans cookie :
-
-- `POST /api/auth/mobile/request-login-code` `{email}` -> `202`
-- `POST /api/auth/mobile/login-with-code` `{email, code}` -> `200 {userId,email,accessToken,refreshToken,tokenType,expiresIn}`
-- `POST /api/auth/mobile/login-with-google` `{idToken}` -> même réponse
-- `POST /api/auth/mobile/login-with-facebook` `{idToken,nonce}` (iOS) ou `{accessToken}` (Android) -> même réponse
-- `POST /api/auth/mobile/logout` `{refreshToken}` -> `204`
-
-Erreurs : `ProblemDetail` (`type`, `title`, `detail`, `status`) ; `401` code/Google/Facebook invalide,
-`403` compte suspendu (`suspendedUntil`), `422` email Facebook manquant,
-`503` Google/Facebook indisponible.
-
-### Serveur d'autorisation OIDC (Spring Security standard)
-
-- `/oauth2/authorize`, `/oauth2/token`, `/oauth2/jwks`, `/oauth2/revoke`, `/oauth2/introspect`
-- `/.well-known/openid-configuration`, `/connect/logout`
-- Social : `/oauth2/authorization/google` -> `/login/oauth2/code/google` et
-  `/oauth2/authorization/facebook` -> `/login/oauth2/code/facebook`
-  (succès -> redirection SPA `app.security.oauth2.success-redirect-uri`, ou `/sign-in/continue` depuis la page des
-  outils).
-
-En cas de non-authentification sur `/oauth2/authorize` (HTML ; sinon `401` JSON), la page de connexion dépend du
-client (`ClientLoginEntryPoint`, 2026-11-16) :
-
-- **Joueurs** (`web`, `mobile`) : `302` vers l'app (`app.security.login-page-uri`), dont le parcours personnalisé
-  ouvre la session puis enchaîne son propre PKCE. Plus de `?continue=`.
-- **Outils techniques** (`app.security.tool-clients` : `console`, `grafana`, `argocd`, `swagger`) : `302` vers
-  **`/sign-in`**, page sobre hébergée par identity (`resources/sign-in/index.html`, jetons du design system, FR/EN).
-  Code par email sur l'API web (`/api/auth/web/request-login-code`, `login-with-code`) ou Google
-  (`/sign-in/google` pose une marque de session, `SocialLoginHandlers` ramène sur la page des outils). Une fois la
-  session ouverte, `/sign-in/continue` reprend l'autorisation mémorisée par Spring Security (`HttpSessionRequestCache`).
-  La page générée par `oauth2Login` sur `/login` reste neutralisée.
-
-### Routes internes
-
-- Connecteurs Axon (`/query-capabilities`, `/command-capabilities`, `/command-transport`, …)
-- Actuator, Swagger (`/v3/api-docs`, `/swagger-ui`)
-
-**JWT** : `JwtTokenCustomizer` émet `sub`, `email`, `user_email`, `user_id`, `roles`
-et `aud` (si `app.authorization-server.audience` renseigné) — **aucun claim `name`**.
-Les rôles viennent de `Roles.forUser(userId, email)` : `ROLE_USER` pour tous, plus `ROLE_ADMIN` pour
-le compte système et pour toute adresse de `app.authorization-server.admin-emails`
-(consommé en aval, ex. `role_attribute_path` Grafana).
-
----
-
-## 3. Use cases (ports entrants — `domain/port/in/`)
-
-Exposés **sur le bus Axon**, sans REST (sauf l'API JSON d'auth) :
-
-- `RegisterUserUseCase` — enregistrement sans credential (passwordless/système) ou via provider social
-- `PasswordlessAuthUseCase` — demande + vérification du code OTP (implémenté par `PasswordlessAuthService`)
-- `LinkSocialProviderUseCase` — liaison d'un provider à un compte existant
-- `RecordUserLoginUseCase` — enregistrement d'une connexion réussie (OTP ou sociale, 1re connexion incluse)
-- `GetUserUseCase`, `FindUserUseCase`, `CheckUserUseCase`, `SearchUserUseCase`
-
-**Queries** (`domain/query/UserQuery.java`) : `UserSearchQuery`, `UserExistsByIdQuery`,
-`UserExistsByEmailQuery`, `GetUserQuery`, `FindUserQuery`, `FindUserByEmailQuery`,
-`GetUsersByIdsQuery`, `GetUserAccountStatusQuery`, `GetUserAccountStatusesQuery`.
-
-`UserSearchQuery` accepte deux filtres admin supplémentaires, traités par
-`UserRepositoryAdapter` (hors champs `@Searchable`) : `status` ∈ `ACTIVE|SUSPENDED` (suspension
-**effective** — une échéance dépassée vaut actif, même avant le balayeur) et `reported` booléen
-(présence d'un signalement `OPEN`). Ils alimentent le catalogue paginé de la console admin ; la
-recherche par pseudonyme reste résolue côté BFF via `joutio-profile` (`userId IN (…)`). Ce support
-doit être déployé **avant** le BFF qui émet ces filtres.
-
-### Suspension de compte et signalements de joueurs
-
-- **Statut de compte** porté par `UserAggregate` : `AccountStatus` (`ACTIVE|SUSPENDED`),
-  `UserSuspension` (motif, note interne, acteur, `suspendedUntil` `null` = définitive,
-  réintégration). Commandes `SuspendUserCommand` / `ReinstateUserCommand` ; événements
-  `UserSuspendedEvent` / `UserReinstatedEvent` (email inclus, autosuffisants).
-- **Garde-fous** : compte système (`SYSTEM_USER_ID`) jamais suspendable ; double suspension
-  refusée ; réintégration idempotente ; une suspension temporaire échue est **effectivement
-  active** même avant le passage du balayeur (`AccountStatusRules`).
-- **Expiration** : `SuspensionExpirySweeper` (`@Scheduled`) envoie une réintégration système
-  `EXPIRED` pour les échéances dépassées. La lecture du statut ne bloque jamais un compte dont
-  l'échéance est passée.
-- **Application** : OTP (`verifyCode`), login social, générateur de tokens (`invalid_grant`
-  `account_suspended` pour code/refresh), suppression des sessions `AUTH_TX` et autorisations
-  OAuth2 à la suspension. Un email est envoyé au joueur (la note reste interne).
-- **Signalements** : `UserReportThreadAggregate` (thread déterministe joueur signalé × signalant,
-  un seul `OPEN`), snapshot pseudonyme/avatar + contexte `PROFILE|GAME`. Queries
-  `UserReportQuery.*` (détail, liste par cible, file groupée, stats).
-- **Migration** `V4__account_suspension_and_user_reports.sql` (`user_entry` + `user_report` +
-  `user_report_reason`, index unique partiel `(thread_id) WHERE status='OPEN'`).
-- **Pas d'auto-suspension** : la décision est exclusivement admin.
-
----
-
-## 4. Dépendances inter-services
-
-**Aucune dépendance sortante.** Identity est un **fournisseur** sur le bus partagé :
-
-- Événement `UserEvent.UserRegisteredEvent(userId, email, provider, createdAt)` ->
-  consommé par `joutio-profile` (saga `CreateProfileSaga`).
-- Événement `UserEvent.SocialProviderLinkedEvent(userId, provider, linkedAt)` (mise à jour locale).
-- Événement `UserEvent.UserLoggedInEvent(userId, loggedInAt)` — émis à chaque connexion réussie
-  (OTP ou sociale, y compris la première), exploité par les métriques Axon (`joutio_axon_events_published_total`).
-- Événement `UserEvent.UserSuspendedEvent(userId, email, suspensionId, reason, note, suspendedBy,
-  suspendedAt, suspendedUntil)` — consommé par `joutio-notification` (inbox obligatoire) et le BFF
-  (invalidation de cache + fermeture des accès).
-- Événement `UserEvent.UserReinstatedEvent(userId, email, suspensionId, reason, note, reinstatedBy,
-  reinstatedAt)` — consommé par le BFF.
-- Les queries `UserQuery.*` restent exposées sur le bus.
-
-**Ports sortants locaux** : `LoginCodeRepositoryPort` (OTP), `EmailSenderPort` (Resend),
-`UserRepositoryPort` (persistance).
-
----
-
-## 5. Configuration clé
+## Configuration
 
 | Propriété | Rôle |
 |---|---|
-| `app.authorization-server.issuer` | Issuer OIDC public (doit matcher l'authority de la SPA) |
-| `app.authorization-server.audience` | Claim `aud` (optionnel) |
-| `app.authorization-server.admin-emails` | Allowlist d'emails → `ROLE_ADMIN` (env `JOUTIO_ADMIN_EMAILS`) |
-| `joutio.account-suspension.sweep-interval-ms` | Fréquence du balayeur des suspensions temporaires échues (défaut 60 000 ms) |
-| `app.mail.api-key` / `app.mail.from` / `app.mail.base-url` | Envoi des codes OTP via Resend (`JOUTIO_MAIL_API_KEY`, …) |
-| `app.auth.dev-fixed-code` | Code OTP fixe réservé au profil `local`/E2E |
-| `app.auth.load-test.email-domain` / `.code` | **Joueurs synthétiques** (tests de charge) : les emails `@<domain>` reçoivent le code fixe `code` **sans email** (inscription, saga profil et login restent natifs). Vide = désactivé (défaut) ; activé par campagne via `JOUTIO_LOADTEST_EMAIL_DOMAIN`/`JOUTIO_LOADTEST_CODE` (secret `joutio-identity-loadtest`, piloté par `stress-test/bin/campaign.sh`), log `WARN` au démarrage |
-| `app.auth.mobile.client-id` | Client OAuth2 public utilisé par les endpoints natifs (`mobile`) |
-| `app.auth.mobile.google-client-id` | Client OAuth2 **Web** Google : audience des ID tokens du SDK natif |
-| `app.auth.mobile.facebook-app-id` | App ID Facebook : audience des ID tokens Limited Login (iOS) et des access tokens Android |
-| `spring.security.oauth2.client.registration.facebook` | Client Facebook web (OAuth2 + Graph, scopes `public_profile,email`) — secret via `JOUTIO_OAUTH2_FACEBOOK_SECRET` |
-| `app.jwk.jwk-set` | JWK Set JSON partagée (secret `JOUTIO_IDENTITY_JWK`) |
-| `app.security.login-page-uri` | Connexion de l'app pour les clients joueurs (entry point non authentifié) |
-| `app.security.tool-clients` | Clients des outils techniques, connectés sur `/sign-in` (défaut `console,grafana,argocd,swagger`) |
-| `app.security.oauth2.success-redirect-uri` / `failure-redirect-uri` | Retour social |
-| `app.security.cors.allowed-origins` | Origine SPA (credentials) |
-| `app.security.session.cookie-*` | Cookie `AUTH_TX` (name/same-site/secure) |
-| `spring.security.oauth2.authorizationserver.client.{web,mobile}.token` | Tokens des clients SPA/mobile : access `PT1H`, refresh **`P365D`** (sessions longues), rotation `reuse-refresh-tokens: false` — clients construits en mémoire au démarrage (rollout image suffisant) |
+| `app.authorization-server.issuer`, `.audience`, `.admin-emails` | issuer public, `aud`, admins (`JOUTIO_ADMIN_EMAILS`) |
+| `app.mail.api-key`, `.from`, `.base-url` | envoi des OTP par Resend |
+| `app.auth.dev-fixed-code` | code OTP fixe, profil `local` et E2E seulement |
+| `app.auth.load-test.email-domain`, `.code` | joueurs synthétiques des tests de charge (vide = désactivé ; piloté par `stress-test/bin/campaign.sh`) |
+| `app.auth.mobile.client-id`, `.google-client-id`, `.facebook-app-id` | client public mobile, audiences Google et Facebook |
+| `app.security.login-page-uri`, `.tool-clients`, `.oauth2.success-redirect-uri`, `.cors.allowed-origins`, `.session.cookie-*` | redirections, CORS, cookie |
+| `spring.security.oauth2.authorizationserver.client.{web,mobile}.token` | access `PT1H`, refresh `P365D`, rotation |
+| `joutio.account-suspension.sweep-interval-ms` | balayeur des suspensions échues (60 s) |
 
-### Droit Premium et droits effectifs
+## Commandes
 
-Le droit Premium est **porté par `UserAggregate`** (2026-11-12, `premium/specs/entitlements.md`) :
-`GrantPremiumCommand(userId, source, premiumUntil?, requestedBy, grantedAt)` /
-`RevokePremiumCommand(userId, note?, requestedBy, revokedAt)` → `UserPremiumGrantedEvent` /
-`UserPremiumRevokedEvent`. `premiumUntil` nul = sans échéance ; `PremiumSource` ∈
-`MANUAL|APP_STORE|PLAY|WEB` (seul `MANUAL` est émis tant que `joutio-billing` n'existe pas).
-Grant idempotent sur un droit identique actif, refusé pour un compte supprimé ou système ; Revoke
-idempotent. La projection `user_entry` porte `premium_source|until|granted_by|granted_at` (V3) ;
-`User.premium`, `UserAccountStatus.premium` et `PremiumRules` (`isActive`, `isEffective`) exposent
-le droit. Un compte **suspendu** n'exerce jamais Premium (vérifié à la lecture, le droit reste
-stocké).
+```bash
+mvn -q -pl joutio-identity-domain test
+mvn -pl joutio-identity-infrastructure test
+```
 
-`UserQuery.GetUserEntitlementsQuery(userId)` retourne `UserEntitlements(userId, premium,
-premiumUntil, source)` : `premium` = droit accordé actif **ou** `ROLE_ADMIN` (`Roles.forUser`), faux
-si suspendu. Le BFF lit le droit du joueur courant via `UserAccountStatus` (cache `IdentityLookup`
-purgé sur les événements Premium) ; `ROLE_PREMIUM` n'est plus émis ni lu. Le paiement
-(`joutio-billing`) arrive en M2 et enverra les mêmes commandes.
+## Pièges
+
+- Le seeder OIDC ne met pas à jour un client existant : supprimer sa ligne
+  `oauth2_registered_client`, puis redémarrer.
+- Domaine d'envoi Resend non vérifié : l'OTP échoue en `403`, alors que l'API répond `202`.
+  Vérifier les logs (`Failed to send login code`).
+- Les filtres admin de `UserSearchQuery` doivent être déployés avant le BFF qui les émet.
