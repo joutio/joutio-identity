@@ -1,3 +1,9 @@
+## [2.4.2](https://github.com/joutio/joutio-identity/compare/v2.4.1...v2.4.2) (2026-11-17)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 1.2.0, segmented processing groups and single-partition Axon topic ([c74c081](https://github.com/joutio/joutio-identity/commit/c74c081ce527650e2a30b36bc80ab58b903378f1))
+
 ## [2.4.1](https://github.com/joutio/joutio-identity/compare/v2.4.0...v2.4.1) (2026-11-17)
 
 ### Bug Fixes
