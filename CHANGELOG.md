@@ -1,3 +1,9 @@
+## [2.4.1](https://github.com/joutio/joutio-identity/compare/v2.4.0...v2.4.1) (2026-11-17)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 1.1.0, unknown enum constants tolerated on the Axon transport ([4d4a560](https://github.com/joutio/joutio-identity/commit/4d4a560c27b162327b713105fb44bf18fbf519cc))
+
 ## [2.4.0](https://github.com/joutio/joutio-identity/compare/v2.3.0...v2.4.0) (2026-11-16)
 
 ### Features
