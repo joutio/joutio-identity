@@ -1,3 +1,9 @@
+## [2.4.3](https://github.com/joutio/joutio-identity/compare/v2.4.2...v2.4.3) (2026-11-18)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 2.0.0, idle-friendly processors and bytea Axon schema ([e4444c9](https://github.com/joutio/joutio-identity/commit/e4444c9c1bc143249d18dc7800e2692b5b010251))
+
 ## [2.4.2](https://github.com/joutio/joutio-identity/compare/v2.4.1...v2.4.2) (2026-11-17)
 
 ### Bug Fixes
