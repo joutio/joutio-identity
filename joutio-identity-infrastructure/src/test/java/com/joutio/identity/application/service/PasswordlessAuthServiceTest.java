@@ -107,6 +107,6 @@ class PasswordlessAuthServiceTest {
                 new AppProperties.SeedData(false));
         return new PasswordlessAuthService(loginCodes, emailSender,
                 mock(FindUserUseCase.class), mock(RegisterUserUseCase.class),
-                mock(RecordUserLoginUseCase.class), PLAIN, properties);
+                mock(RecordUserLoginUseCase.class), PLAIN, mock(RegisteredUserWaiter.class), properties);
     }
 }

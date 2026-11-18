@@ -43,6 +43,7 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
     private final RegisterUserUseCase registerUserUseCase;
     private final RecordUserLoginUseCase recordUserLoginUseCase;
     private final PasswordEncoder passwordEncoder;
+    private final RegisteredUserWaiter registeredUserWaiter;
     private final String devFixedCode;
     private final AppProperties.Auth.LoadTest loadTest;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -53,6 +54,7 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
                                    RegisterUserUseCase registerUserUseCase,
                                    RecordUserLoginUseCase recordUserLoginUseCase,
                                    PasswordEncoder passwordEncoder,
+                                   RegisteredUserWaiter registeredUserWaiter,
                                    AppProperties properties) {
         this.loginCodeRepository = loginCodeRepository;
         this.emailSender = emailSender;
@@ -60,6 +62,7 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
         this.registerUserUseCase = registerUserUseCase;
         this.recordUserLoginUseCase = recordUserLoginUseCase;
         this.passwordEncoder = passwordEncoder;
+        this.registeredUserWaiter = registeredUserWaiter;
         this.devFixedCode = properties.auth().devFixedCode();
         this.loadTest = properties.auth().loadTest();
         if (loadTest.enabled()) {
@@ -153,6 +156,7 @@ public class PasswordlessAuthService implements PasswordlessAuthUseCase {
 
         try {
             registerUserUseCase.registerUser(userId, email).join();
+            registeredUserWaiter.awaitReadable(userId);
         } catch (CompletionException exception) {
             // Course possible avec un enregistrement concurrent (ex. social) : on relit.
             return findUserUseCase.findByEmail(email).join()

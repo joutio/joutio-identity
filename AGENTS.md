@@ -34,6 +34,9 @@ OIDC    /oauth2/{authorize,token,jwks,revoke,introspect}, /.well-known/openid-co
 
 - La première connexion **crée le compte**. L'API web ne renvoie jamais de JWT ; le mobile reçoit
   les jetons directement (grant `urn:joutio:native`, sessions dans `oauth2_authorization`).
+- Avant d'émettre la session d'un compte tout juste créé (OTP, Google, Facebook), identity attend
+  que `user-projection` l'ait écrit dans `user_entry` (`RegisteredUserWaiter`, 5 s max) : sinon le
+  BFF rejetterait la première requête comme celle d'un compte supprimé.
 - Une API d'auth **orientée action** (`request-login-code`, `login-with-code`…), assumée pour la
   lisibilité.
 - Sans session sur `/oauth2/authorize` :

@@ -34,15 +34,18 @@ public class SocialUserService {
     private final RegisterUserUseCase registerUserUseCase;
     private final LinkSocialProviderUseCase linkSocialProviderUseCase;
     private final RecordUserLoginUseCase recordUserLoginUseCase;
+    private final RegisteredUserWaiter registeredUserWaiter;
 
     public SocialUserService(UserRepositoryPort userRepositoryPort,
                              RegisterUserUseCase registerUserUseCase,
                              LinkSocialProviderUseCase linkSocialProviderUseCase,
-                             RecordUserLoginUseCase recordUserLoginUseCase) {
+                             RecordUserLoginUseCase recordUserLoginUseCase,
+                             RegisteredUserWaiter registeredUserWaiter) {
         this.userRepositoryPort = userRepositoryPort;
         this.registerUserUseCase = registerUserUseCase;
         this.linkSocialProviderUseCase = linkSocialProviderUseCase;
         this.recordUserLoginUseCase = recordUserLoginUseCase;
+        this.registeredUserWaiter = registeredUserWaiter;
     }
 
     /**
@@ -67,6 +70,7 @@ public class SocialUserService {
 
         try {
             registerUserUseCase.registerWithSocial(userId, email, provider).join();
+            registeredUserWaiter.awaitReadable(userId);
             recordUserLogin(userId);
             return new User(userId, email, Set.of(provider), Instant.now());
         } catch (RuntimeException exception) {
