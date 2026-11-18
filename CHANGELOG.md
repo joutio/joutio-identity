@@ -1,3 +1,9 @@
+## [2.4.4](https://github.com/joutio/joutio-identity/compare/v2.4.3...v2.4.4) (2026-11-18)
+
+### Bug Fixes
+
+* **auth:** wait for the new account to be projected before issuing the session ([88c9627](https://github.com/joutio/joutio-identity/commit/88c96274cfb11cf2e9872e744edc5b9a13a4eb9b))
+
 ## [2.4.3](https://github.com/joutio/joutio-identity/compare/v2.4.2...v2.4.3) (2026-11-18)
 
 ### Bug Fixes
