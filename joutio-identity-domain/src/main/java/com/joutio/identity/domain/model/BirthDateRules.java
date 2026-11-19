@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 
 /**
  * Règles de la date de naissance (privée, jamais exposée hors du joueur concerné).
@@ -29,17 +30,18 @@ public final class BirthDateRules {
         return ChronoUnit.YEARS.between(birthDate, today);
     }
 
-    /** @throws IllegalArgumentException date absente, future ou au-delà de {@value #MAX_AGE} ans */
-    public static void validate(LocalDate birthDate, LocalDate today) {
+    /** Violation constatée : date absente, future ou au-delà de {@value #MAX_AGE} ans. */
+    public static Optional<String> violation(LocalDate birthDate, LocalDate today) {
         if (birthDate == null) {
-            throw new IllegalArgumentException("A birth date is required");
+            return Optional.of("A birth date is required");
         }
         if (birthDate.isAfter(today)) {
-            throw new IllegalArgumentException("The birth date must not be in the future");
+            return Optional.of("The birth date must not be in the future");
         }
         if (age(birthDate, today) > MAX_AGE) {
-            throw new IllegalArgumentException("The birth date must be less than " + MAX_AGE + " years ago");
+            return Optional.of("The birth date must be less than " + MAX_AGE + " years ago");
         }
+        return Optional.empty();
     }
 
     public static boolean oldEnough(LocalDate birthDate, LocalDate today) {

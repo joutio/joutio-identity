@@ -48,6 +48,15 @@ public interface UserProblems {
         }
     }
 
+    /** Le fournisseur social n'a transmis aucun email : le compte Joutio ne peut pas être résolu. */
+    class SocialEmailMissingProblem extends UserProblem {
+        public SocialEmailMissingProblem() {
+            super("UNKNOWN", "urn:joutio:user:missingSocialEmail",
+                    "Missing social email",
+                    "An email is required for social login");
+        }
+    }
+
     class UserAlreadyExistsProblem extends UserProblem {
         public UserAlreadyExistsProblem(String userId, String email) {
             super(userId, "urn:joutio:user:alreadyExists", "User already exists",

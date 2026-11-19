@@ -45,12 +45,11 @@ public class UserReportThreadAggregate {
         if (currentOpenReportId != null) {
             return new UserReportResult(currentOpenReportId, false);
         }
-        try {
-            UserReportRules.validateNotSelf(command.targetUserId(), command.reporterId());
-            UserReportRules.validateReport(command.reasons(), command.comment());
-        } catch (IllegalArgumentException error) {
-            throw new UserReportProblems.InvalidUserReportProblem(command.threadId(), error.getMessage());
-        }
+        UserReportRules.selfReportViolation(command.targetUserId(), command.reporterId())
+                .or(() -> UserReportRules.reportViolation(command.reasons(), command.comment()))
+                .ifPresent(detail -> {
+                    throw new UserReportProblems.InvalidUserReportProblem(command.threadId(), detail);
+                });
 
         String reportId = UUID.randomUUID().toString();
         AggregateLifecycle.apply(new UserReportEvent.UserReportedEvent(
@@ -76,11 +75,9 @@ public class UserReportThreadAggregate {
         if (status != UserReportStatus.OPEN) {
             return;
         }
-        try {
-            UserReportRules.validateNote(command.note());
-        } catch (IllegalArgumentException error) {
-            throw new UserReportProblems.InvalidUserReportProblem(command.reportId(), error.getMessage());
-        }
+        UserReportRules.noteViolation(command.note()).ifPresent(detail -> {
+            throw new UserReportProblems.InvalidUserReportProblem(command.reportId(), detail);
+        });
 
         AggregateLifecycle.apply(new UserReportEvent.UserReportReviewedEvent(
                 command.threadId(),

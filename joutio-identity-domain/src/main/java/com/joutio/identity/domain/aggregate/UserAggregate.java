@@ -152,12 +152,11 @@ public class UserAggregate {
         if (command.reason() == null) {
             throw new UserReportProblems.InvalidSuspensionProblem(userId, "A suspension reason is required");
         }
-        try {
-            UserReportRules.validateNote(command.note());
-            UserReportRules.validateSuspension(command.suspendedAt(), command.suspendedUntil());
-        } catch (IllegalArgumentException error) {
-            throw new UserReportProblems.InvalidSuspensionProblem(userId, error.getMessage());
-        }
+        UserReportRules.noteViolation(command.note())
+                .or(() -> UserReportRules.suspensionViolation(command.suspendedAt(), command.suspendedUntil()))
+                .ifPresent(detail -> {
+                    throw new UserReportProblems.InvalidSuspensionProblem(userId, detail);
+                });
 
         AggregateLifecycle.apply(new UserEvent.UserSuspendedEvent(
                 userId,
@@ -175,11 +174,9 @@ public class UserAggregate {
         if (status != AccountStatus.SUSPENDED) {
             return;
         }
-        try {
-            UserReportRules.validateNote(command.note());
-        } catch (IllegalArgumentException error) {
-            throw new UserReportProblems.InvalidSuspensionProblem(userId, error.getMessage());
-        }
+        UserReportRules.noteViolation(command.note()).ifPresent(detail -> {
+            throw new UserReportProblems.InvalidSuspensionProblem(userId, detail);
+        });
 
         AggregateLifecycle.apply(new UserEvent.UserReinstatedEvent(
                 userId,
@@ -220,11 +217,9 @@ public class UserAggregate {
         if (!PremiumRules.isActive(premium, command.revokedAt())) {
             return;
         }
-        try {
-            UserReportRules.validateNote(command.note());
-        } catch (IllegalArgumentException error) {
-            throw new PremiumProblems.InvalidPremiumGrantProblem(userId, error.getMessage());
-        }
+        UserReportRules.noteViolation(command.note()).ifPresent(detail -> {
+            throw new PremiumProblems.InvalidPremiumGrantProblem(userId, detail);
+        });
         AggregateLifecycle.apply(new UserEvent.UserPremiumRevokedEvent(
                 userId,
                 premium.source(),
@@ -240,11 +235,9 @@ public class UserAggregate {
         }
         Instant requestedAt = command.requestedAt() == null ? Instant.now() : command.requestedAt();
         LocalDate today = BirthDateRules.today(requestedAt);
-        try {
-            BirthDateRules.validate(command.birthDate(), today);
-        } catch (IllegalArgumentException error) {
-            throw new BirthDateProblems.InvalidBirthDateProblem(userId, error.getMessage());
-        }
+        BirthDateRules.violation(command.birthDate(), today).ifPresent(detail -> {
+            throw new BirthDateProblems.InvalidBirthDateProblem(userId, detail);
+        });
         if (!BirthDateRules.oldEnough(command.birthDate(), today)) {
             throw new BirthDateProblems.UnderageProblem(userId);
         }

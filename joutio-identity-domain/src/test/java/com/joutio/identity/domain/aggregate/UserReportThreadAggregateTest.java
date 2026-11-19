@@ -18,7 +18,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UserReportThreadAggregateTest {
 
@@ -95,8 +95,7 @@ class UserReportThreadAggregateTest {
 
     @Test
     void report_self_isRejected() {
-        assertThrows(IllegalArgumentException.class,
-                () -> UserReportRules.validateNotSelf("u1", "u1"));
+        assertTrue(UserReportRules.selfReportViolation("u1", "u1").isPresent());
     }
 
     private static UserReportEvent.UserReportedEvent reported(String reportId) {

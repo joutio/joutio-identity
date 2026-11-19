@@ -3,11 +3,13 @@ package com.joutio.identity.domain.model;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Règles pures des signalements de joueurs et des suspensions de compte.
+ * Règles pures des signalements de joueurs et des suspensions de compte. Les contrôles renvoient la violation
+ * constatée ; l'appelant lève le problème typé de son contexte (signalement, suspension, Premium).
  */
 public interface UserReportRules {
 
@@ -22,34 +24,37 @@ public interface UserReportRules {
         return UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8)).toString();
     }
 
-    static void validateReport(Set<UserReportReason> reasons, String comment) {
+    static Optional<String> reportViolation(Set<UserReportReason> reasons, String comment) {
         if (reasons == null || reasons.isEmpty()) {
-            throw new IllegalArgumentException("At least one report reason is required");
+            return Optional.of("At least one report reason is required");
         }
         if (reasons.size() > MAX_REASONS) {
-            throw new IllegalArgumentException("Too many report reasons");
+            return Optional.of("Too many report reasons");
         }
         if (comment != null && comment.length() > MAX_COMMENT_LENGTH) {
-            throw new IllegalArgumentException("Report comment is too long");
+            return Optional.of("Report comment is too long");
         }
+        return Optional.empty();
     }
 
-    static void validateNote(String note) {
-        if (note != null && note.length() > MAX_NOTE_LENGTH) {
-            throw new IllegalArgumentException("Note is too long");
-        }
+    static Optional<String> noteViolation(String note) {
+        return note != null && note.length() > MAX_NOTE_LENGTH
+                ? Optional.of("Note is too long")
+                : Optional.empty();
     }
 
-    static void validateSuspension(Instant suspendedAt, Instant suspendedUntil) {
-        Objects.requireNonNull(suspendedAt, "suspendedAt");
-        if (suspendedUntil != null && !suspendedUntil.isAfter(suspendedAt)) {
-            throw new IllegalArgumentException("Suspension end must be in the future");
+    static Optional<String> suspensionViolation(Instant suspendedAt, Instant suspendedUntil) {
+        if (suspendedAt == null) {
+            return Optional.of("A suspension date is required");
         }
+        return suspendedUntil != null && !suspendedUntil.isAfter(suspendedAt)
+                ? Optional.of("Suspension end must be in the future")
+                : Optional.empty();
     }
 
-    static void validateNotSelf(String targetUserId, String reporterId) {
-        if (Objects.equals(targetUserId, reporterId)) {
-            throw new IllegalArgumentException("A player cannot report themselves");
-        }
+    static Optional<String> selfReportViolation(String targetUserId, String reporterId) {
+        return Objects.equals(targetUserId, reporterId)
+                ? Optional.of("A player cannot report themselves")
+                : Optional.empty();
     }
 }

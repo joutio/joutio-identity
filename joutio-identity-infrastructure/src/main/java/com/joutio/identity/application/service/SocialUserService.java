@@ -1,5 +1,6 @@
 package com.joutio.identity.application.service;
 
+import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.exception.UserReportProblems;
 import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.User;
@@ -115,7 +116,7 @@ public class SocialUserService {
 
     private String normalize(String email) {
         if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("Email is required for social login");
+            throw new UserProblems.SocialEmailMissingProblem();
         }
         return email.trim().toLowerCase(Locale.ROOT);
     }

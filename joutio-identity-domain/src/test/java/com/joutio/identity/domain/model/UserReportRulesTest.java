@@ -5,38 +5,40 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UserReportRulesTest {
 
     @Test
-    void validateReport_requiresAtLeastOneReason() {
-        assertThrows(IllegalArgumentException.class,
-                () -> UserReportRules.validateReport(Set.of(), null));
+    void reportViolation_requiresAtLeastOneReason() {
+        assertTrue(UserReportRules.reportViolation(Set.of(), null).isPresent());
     }
 
     @Test
-    void validateReport_acceptsReasonsAndBoundedComment() {
-        assertDoesNotThrow(() -> UserReportRules.validateReport(
-                Set.of(UserReportReason.SPAM), "x".repeat(UserReportRules.MAX_COMMENT_LENGTH)));
+    void reportViolation_acceptsReasonsAndBoundedComment() {
+        assertTrue(UserReportRules.reportViolation(
+                Set.of(UserReportReason.SPAM), "x".repeat(UserReportRules.MAX_COMMENT_LENGTH)).isEmpty());
     }
 
     @Test
-    void validateReport_rejectsTooLongComment() {
-        assertThrows(IllegalArgumentException.class, () -> UserReportRules.validateReport(
-                Set.of(UserReportReason.SPAM), "x".repeat(UserReportRules.MAX_COMMENT_LENGTH + 1)));
+    void reportViolation_rejectsTooLongComment() {
+        assertTrue(UserReportRules.reportViolation(
+                Set.of(UserReportReason.SPAM), "x".repeat(UserReportRules.MAX_COMMENT_LENGTH + 1)).isPresent());
     }
 
     @Test
-    void validateSuspension_rejectsPastEnd() {
+    void suspensionViolation_rejectsPastEnd() {
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
-        assertThrows(IllegalArgumentException.class,
-                () -> UserReportRules.validateSuspension(now, now.minusSeconds(1)));
-        assertDoesNotThrow(() -> UserReportRules.validateSuspension(now, null));
-        assertDoesNotThrow(() -> UserReportRules.validateSuspension(now, now.plusSeconds(1)));
+        assertTrue(UserReportRules.suspensionViolation(now, now.minusSeconds(1)).isPresent());
+        assertTrue(UserReportRules.suspensionViolation(now, null).isEmpty());
+        assertTrue(UserReportRules.suspensionViolation(now, now.plusSeconds(1)).isEmpty());
+    }
+
+    @Test
+    void noteViolation_rejectsTooLongNote() {
+        assertTrue(UserReportRules.noteViolation("x".repeat(UserReportRules.MAX_NOTE_LENGTH + 1)).isPresent());
+        assertTrue(UserReportRules.noteViolation(null).isEmpty());
     }
 
     @Test
