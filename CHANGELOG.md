@@ -1,3 +1,9 @@
+## [2.4.5](https://github.com/joutio/joutio-identity/compare/v2.4.4...v2.4.5) (2026-11-19)
+
+### Bug Fixes
+
+* **errors:** typed problems instead of IllegalArgumentException ([b4df757](https://github.com/joutio/joutio-identity/commit/b4df757a9391d7626265867dc120d18b16539998))
+
 ## [2.4.4](https://github.com/joutio/joutio-identity/compare/v2.4.3...v2.4.4) (2026-11-18)
 
 ### Bug Fixes
