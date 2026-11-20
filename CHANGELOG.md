@@ -1,3 +1,9 @@
+## [2.5.0](https://github.com/joutio/joutio-identity/compare/v2.4.12...v2.5.0) (2026-11-20)
+
+### Features
+
+* **identity:** admin flag and effective premium on account status ([7c4f08e](https://github.com/joutio/joutio-identity/commit/7c4f08ee645c3a9b9e750a9eb10e6a52cfc0b96e))
+
 ## [2.4.12](https://github.com/joutio/joutio-identity/compare/v2.4.11...v2.4.12) (2026-11-20)
 
 ### Bug Fixes
