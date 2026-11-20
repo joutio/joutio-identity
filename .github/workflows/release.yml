@@ -14,6 +14,9 @@ jobs:
       java-version: "25"
       github-username: ${{ vars.JOUTIO_GITHUB_USERNAME }}
       service-name: identity
+      # Démarrage d'entraînement du cache AOT (profil local) : valeur factice du seul secret sans défaut.
+      aot-training-env: |
+        JOUTIO_OAUTH2_GOOGLE_SECRET=aot-training
     secrets:
       GITHUB_PASSWORD: ${{ secrets.JOUTIO_GITHUB_TOKEN }}
 
