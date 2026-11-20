@@ -1,3 +1,9 @@
+## [2.4.9](https://github.com/joutio/joutio-identity/compare/v2.4.8...v2.4.9) (2026-11-20)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 2.4.0, instance-scoped groups on one Kafka consumer per pod ([1901c1c](https://github.com/joutio/joutio-identity/commit/1901c1cc07acb1227131044f1e920210710de330))
+
 ## [2.4.8](https://github.com/joutio/joutio-identity/compare/v2.4.7...v2.4.8) (2026-11-20)
 
 ### Bug Fixes
