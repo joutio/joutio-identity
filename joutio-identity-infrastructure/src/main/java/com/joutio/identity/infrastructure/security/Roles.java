@@ -1,6 +1,5 @@
 package com.joutio.identity.infrastructure.security;
 
-import com.joutio.identity.domain.port.out.AdminAccountsPort;
 import com.joutio.identity.infrastructure.properties.AppProperties;
 import com.joutio.microservice.core.domain.constant.JoutioConstants;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,7 +21,7 @@ import java.util.stream.Collectors;
  * {@code role_attribute_path}).
  */
 @Component
-public class Roles implements AdminAccountsPort {
+public class Roles {
 
     static final String ROLE_USER = "ROLE_USER";
     static final String ROLE_ADMIN = "ROLE_ADMIN";
@@ -38,15 +37,10 @@ public class Roles implements AdminAccountsPort {
     }
 
     public List<GrantedAuthority> forUser(String userId, String email) {
-        if (isAdmin(userId, email)) {
+        if (JoutioConstants.SYSTEM_USER_ID.equals(userId) || isAdminEmail(email)) {
             return List.of(new SimpleGrantedAuthority(ROLE_USER), new SimpleGrantedAuthority(ROLE_ADMIN));
         }
         return List.of(new SimpleGrantedAuthority(ROLE_USER));
-    }
-
-    @Override
-    public boolean isAdmin(String userId, String email) {
-        return JoutioConstants.SYSTEM_USER_ID.equals(userId) || isAdminEmail(email);
     }
 
     private boolean isAdminEmail(String email) {

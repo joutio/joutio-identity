@@ -3,7 +3,6 @@ package com.joutio.identity.infrastructure.security;
 import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.model.UserEntitlements;
 import com.joutio.identity.domain.model.UserPremium;
-import com.joutio.identity.domain.port.out.AdminAccountsPort;
 import com.joutio.identity.domain.port.out.UserEntitlementsPort;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
 
@@ -14,23 +13,21 @@ import java.time.Clock;
 import java.time.Instant;
 
 /**
- * Droits effectifs d'un compte : Premium accordé dans {@code UserAggregate} (non échu) ou
- * {@code ROLE_ADMIN} ; jamais pour un compte suspendu.
+ * Droits effectifs d'un compte : Premium accordé dans {@code UserAggregate} (non échu), jamais pour un compte
+ * suspendu. {@code ROLE_ADMIN} ne donne pas le Premium : un admin se l'accorde comme tout autre compte.
  */
 @Component
 public class UserEntitlementsAdapter implements UserEntitlementsPort {
     private final UserRepositoryPort users;
-    private final AdminAccountsPort adminAccounts;
     private final Clock clock;
 
     @Autowired
-    public UserEntitlementsAdapter(UserRepositoryPort users, AdminAccountsPort adminAccounts) {
-        this(users, adminAccounts, Clock.systemUTC());
+    public UserEntitlementsAdapter(UserRepositoryPort users) {
+        this(users, Clock.systemUTC());
     }
 
-    UserEntitlementsAdapter(UserRepositoryPort users, AdminAccountsPort adminAccounts, Clock clock) {
+    UserEntitlementsAdapter(UserRepositoryPort users, Clock clock) {
         this.users = users;
-        this.adminAccounts = adminAccounts;
         this.clock = clock;
     }
 
@@ -43,11 +40,9 @@ public class UserEntitlementsAdapter implements UserEntitlementsPort {
         if (user.suspended(now)) {
             return new UserEntitlements(userId, false, null, null);
         }
-        boolean premium =
-                user.premiumActive(now) || adminAccounts.isAdmin(userId, user.email());
         return new UserEntitlements(
                 userId,
-                premium,
+                user.premiumActive(now),
                 granted == null ? null : granted.premiumUntil(),
                 granted == null ? null : granted.source());
     }

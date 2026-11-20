@@ -73,8 +73,8 @@ OIDC    /oauth2/{authorize,token,jwks,revoke,introspect}, /.well-known/openid-co
   - `premiumUntil` nul = sans échéance ;
   - `PremiumSource` ∈ `MANUAL|APP_STORE|PLAY|WEB` (seul `MANUAL` est émis aujourd'hui) ;
   - Grant idempotent sur un droit identique, Revoke idempotent ;
-  - `GetUserEntitlementsQuery` → `premium` = droit actif **ou** `ROLE_ADMIN`, faux si le compte est
-    suspendu (`PremiumRules`).
+  - `GetUserEntitlementsQuery` → `premium` = droit actif, faux si le compte est suspendu (`PremiumRules`) ;
+    `ROLE_ADMIN` ne donne pas le Premium (2026-11-20 : concepts dissociés).
 - **Suppression de compte** (`DeleteAccountCommand`, code OTP dédié) → `UserAccountDeletedEvent`,
   nettoyage des sessions et effacement de l'event store.
 - **Signalements** (`ReportUserCommand`, `ResolveUserReportCommand`) : snapshot du pseudonyme et
@@ -96,7 +96,7 @@ OIDC    /oauth2/{authorize,token,jwks,revoke,introspect}, /.well-known/openid-co
   - `UserAccountDeletedEvent` → tous les services concernés.
 - Requêtes `UserQuery.*` :
   - `GetUserQuery`, `FindUserQuery`, `FindUserByEmailQuery`, `GetUsersByIdsQuery` ;
-  - `GetUserAccountStatus(es)Query` (statut, droit Premium, `admin` ; `premium(now)` pour le badge), `GetUserEntitlementsQuery` ;
+  - `GetUserAccountStatus(es)Query`, `GetUserEntitlementsQuery` ;
   - `UserSearchQuery`, avec les filtres admin `status` (suspension effective) et `reported` ;
   - `UserReportQuery.*`.
 

@@ -4,7 +4,6 @@ import com.joutio.microservice.core.infrastructure.in.api.response.SearchRespons
 import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.model.User;
 import com.joutio.identity.domain.model.UserAccountStatus;
-import com.joutio.identity.domain.port.out.AdminAccountsPort;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
 import com.joutio.identity.domain.query.UserQuery;
 import org.axonframework.queryhandling.QueryHandler;
@@ -22,11 +21,9 @@ import java.util.Optional;
 public class UserQueryHandler {
 
     private final UserRepositoryPort userReadPort;
-    private final AdminAccountsPort adminAccounts;
 
-    public UserQueryHandler(UserRepositoryPort userReadPort, AdminAccountsPort adminAccounts) {
+    public UserQueryHandler(UserRepositoryPort userReadPort) {
         this.userReadPort = userReadPort;
-        this.adminAccounts = adminAccounts;
     }
 
     @QueryHandler
@@ -69,22 +66,21 @@ public class UserQueryHandler {
     public UserAccountStatus handle(UserQuery.GetUserAccountStatusQuery query) {
         User user = userReadPort.findById(query.userId())
                 .orElseThrow(() -> new UserProblems.UserNotFoundProblem(query.userId()));
-        return status(user);
+        return new UserAccountStatus(
+                user.userId(),
+                user.status(),
+                user.suspension() == null ? null : user.suspension().suspendedUntil(),
+                user.premium());
     }
 
     @QueryHandler
     public List<UserAccountStatus> handle(UserQuery.GetUserAccountStatusesQuery query) {
         return userReadPort.findAllByIds(query.userIds()).stream()
-                .map(this::status)
+                .map(user -> new UserAccountStatus(
+                        user.userId(),
+                        user.status(),
+                        user.suspension() == null ? null : user.suspension().suspendedUntil(),
+                        user.premium()))
                 .toList();
-    }
-
-    private UserAccountStatus status(User user) {
-        return new UserAccountStatus(
-                user.userId(),
-                user.status(),
-                user.suspension() == null ? null : user.suspension().suspendedUntil(),
-                user.premium(),
-                adminAccounts.isAdmin(user.userId(), user.email()));
     }
 }
