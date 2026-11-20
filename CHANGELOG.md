@@ -1,3 +1,9 @@
+## [2.4.12](https://github.com/joutio/joutio-identity/compare/v2.4.11...v2.4.12) (2026-11-20)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 2.4.1 with patched dependencies ([53899a4](https://github.com/joutio/joutio-identity/commit/53899a4eda3f42cc21cf204cd24e3beb7c0780a8))
+
 ## [2.4.11](https://github.com/joutio/joutio-identity/compare/v2.4.10...v2.4.11) (2026-11-20)
 
 ### Performance Improvements
