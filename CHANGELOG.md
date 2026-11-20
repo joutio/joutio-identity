@@ -1,3 +1,9 @@
+## [2.4.10](https://github.com/joutio/joutio-identity/compare/v2.4.9...v2.4.10) (2026-11-20)
+
+### Bug Fixes
+
+* **docker:** rebuild on patched base images ([51b3557](https://github.com/joutio/joutio-identity/commit/51b3557b41b95230b7075e4c0b7c7242a377442c))
+
 ## [2.4.9](https://github.com/joutio/joutio-identity/compare/v2.4.8...v2.4.9) (2026-11-20)
 
 ### Bug Fixes
