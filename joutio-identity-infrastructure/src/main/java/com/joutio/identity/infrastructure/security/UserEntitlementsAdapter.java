@@ -3,6 +3,7 @@ package com.joutio.identity.infrastructure.security;
 import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.model.UserEntitlements;
 import com.joutio.identity.domain.model.UserPremium;
+import com.joutio.identity.domain.port.out.AdminAccountsPort;
 import com.joutio.identity.domain.port.out.UserEntitlementsPort;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
 
@@ -19,17 +20,17 @@ import java.time.Instant;
 @Component
 public class UserEntitlementsAdapter implements UserEntitlementsPort {
     private final UserRepositoryPort users;
-    private final Roles roles;
+    private final AdminAccountsPort adminAccounts;
     private final Clock clock;
 
     @Autowired
-    public UserEntitlementsAdapter(UserRepositoryPort users, Roles roles) {
-        this(users, roles, Clock.systemUTC());
+    public UserEntitlementsAdapter(UserRepositoryPort users, AdminAccountsPort adminAccounts) {
+        this(users, adminAccounts, Clock.systemUTC());
     }
 
-    UserEntitlementsAdapter(UserRepositoryPort users, Roles roles, Clock clock) {
+    UserEntitlementsAdapter(UserRepositoryPort users, AdminAccountsPort adminAccounts, Clock clock) {
         this.users = users;
-        this.roles = roles;
+        this.adminAccounts = adminAccounts;
         this.clock = clock;
     }
 
@@ -43,9 +44,7 @@ public class UserEntitlementsAdapter implements UserEntitlementsPort {
             return new UserEntitlements(userId, false, null, null);
         }
         boolean premium =
-                user.premiumActive(now)
-                        || roles.forUser(userId, user.email()).stream()
-                                .anyMatch(role -> role.getAuthority().equals("ROLE_ADMIN"));
+                user.premiumActive(now) || adminAccounts.isAdmin(userId, user.email());
         return new UserEntitlements(
                 userId,
                 premium,

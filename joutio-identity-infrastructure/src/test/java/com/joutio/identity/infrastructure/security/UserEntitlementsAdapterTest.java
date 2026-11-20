@@ -10,10 +10,10 @@ import com.joutio.identity.domain.model.User;
 import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.model.UserSuspension;
 import com.joutio.identity.domain.model.UserSuspensionReason;
+import com.joutio.identity.domain.port.out.AdminAccountsPort;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -26,14 +26,13 @@ class UserEntitlementsAdapterTest {
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private final UserRepositoryPort users = mock(UserRepositoryPort.class);
-    private final Roles roles = mock(Roles.class);
-    private final UserEntitlementsAdapter adapter = new UserEntitlementsAdapter(users, roles, CLOCK);
+    private final AdminAccountsPort adminAccounts = mock(AdminAccountsPort.class);
+    private final UserEntitlementsAdapter adapter = new UserEntitlementsAdapter(users, adminAccounts, CLOCK);
 
     @Test
     void adminIsPremiumWithoutGrant() {
         stub(user(AccountStatus.ACTIVE, null, null));
-        when(roles.forUser("user", "user@example.test"))
-                .thenReturn(List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        when(adminAccounts.isAdmin("user", "user@example.test")).thenReturn(true);
         assertThat(adapter.get("user").premium()).isTrue();
     }
 
@@ -45,13 +44,13 @@ class UserEntitlementsAdapterTest {
         assertThat(entitlements.premium()).isTrue();
         assertThat(entitlements.premiumUntil()).isEqualTo(until);
         assertThat(entitlements.source()).isEqualTo(PremiumSource.MANUAL);
-        verifyNoInteractions(roles);
+        verifyNoInteractions(adminAccounts);
     }
 
     @Test
     void expiredGrantIsNotPremium() {
         stub(user(AccountStatus.ACTIVE, null, grant(NOW.minusSeconds(1))));
-        when(roles.forUser(any(), any())).thenReturn(List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        when(adminAccounts.isAdmin(any(), any())).thenReturn(false);
         assertThat(adapter.get("user").premium()).isFalse();
     }
 
@@ -62,7 +61,7 @@ class UserEntitlementsAdapterTest {
                 null, null, null, null);
         stub(user(AccountStatus.SUSPENDED, suspension, grant(null)));
         assertThat(adapter.get("user").premium()).isFalse();
-        verifyNoInteractions(roles);
+        verifyNoInteractions(adminAccounts);
     }
 
     /** Deux constructeurs : Spring doit savoir lequel injecter (sinon « No default constructor found »). */

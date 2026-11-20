@@ -96,7 +96,7 @@ OIDC    /oauth2/{authorize,token,jwks,revoke,introspect}, /.well-known/openid-co
   - `UserAccountDeletedEvent` → tous les services concernés.
 - Requêtes `UserQuery.*` :
   - `GetUserQuery`, `FindUserQuery`, `FindUserByEmailQuery`, `GetUsersByIdsQuery` ;
-  - `GetUserAccountStatus(es)Query`, `GetUserEntitlementsQuery` ;
+  - `GetUserAccountStatus(es)Query` (statut, droit Premium, `admin` ; `premium(now)` pour le badge), `GetUserEntitlementsQuery` ;
   - `UserSearchQuery`, avec les filtres admin `status` (suspension effective) et `reported` ;
   - `UserReportQuery.*`.
 
