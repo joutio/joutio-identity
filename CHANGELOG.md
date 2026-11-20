@@ -1,3 +1,9 @@
+## [2.4.6](https://github.com/joutio/joutio-identity/compare/v2.4.5...v2.4.6) (2026-11-20)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 2.2.0, kafka consumer, segment and rebalancer metrics ([cef09f7](https://github.com/joutio/joutio-identity/commit/cef09f779da4900c8016a970e53f76c4d31527dd))
+
 ## [2.4.5](https://github.com/joutio/joutio-identity/compare/v2.4.4...v2.4.5) (2026-11-19)
 
 ### Bug Fixes
