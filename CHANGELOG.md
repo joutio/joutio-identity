@@ -1,3 +1,9 @@
+## [2.5.1](https://github.com/joutio/joutio-identity/compare/v2.5.0...v2.5.1) (2026-11-20)
+
+### Bug Fixes
+
+* **identity:** dissociate admin role from premium ([dea6b31](https://github.com/joutio/joutio-identity/commit/dea6b3100335369d15fc51073f8ed9f8ab8984a9))
+
 ## [2.5.0](https://github.com/joutio/joutio-identity/compare/v2.4.12...v2.5.0) (2026-11-20)
 
 ### Features
