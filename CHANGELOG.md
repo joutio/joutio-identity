@@ -1,3 +1,9 @@
+## [2.4.11](https://github.com/joutio/joutio-identity/compare/v2.4.10...v2.4.11) (2026-11-20)
+
+### Performance Improvements
+
+* **docker:** JDK 25 AOT cache at startup ([bc1fe86](https://github.com/joutio/joutio-identity/commit/bc1fe865895f54367b116ee03e299182446bd46f))
+
 ## [2.4.10](https://github.com/joutio/joutio-identity/compare/v2.4.9...v2.4.10) (2026-11-20)
 
 ### Bug Fixes

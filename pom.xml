@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>joutio-identity</artifactId>
-    <version>2.4.10-SNAPSHOT</version>
+    <version>2.4.11</version>
     <packaging>pom</packaging>
 
     <distributionManagement>
