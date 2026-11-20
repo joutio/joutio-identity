@@ -1,3 +1,9 @@
+## [2.4.8](https://github.com/joutio/joutio-identity/compare/v2.4.7...v2.4.8) (2026-11-20)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 2.3.0, readiness waits for instance-scoped processors ([9378ee4](https://github.com/joutio/joutio-identity/commit/9378ee439724d86333681d3616bbf330d299df76))
+
 ## [2.4.7](https://github.com/joutio/joutio-identity/compare/v2.4.6...v2.4.7) (2026-11-20)
 
 ### Bug Fixes
