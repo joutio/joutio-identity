@@ -163,8 +163,6 @@ public class AuthorizationServerConfig {
 
         http
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
-                        "/spring-query-bus-connector/**",
-                        "/query-capabilities",
                         "/command-capabilities",
                         "/command-transport",
                         "/spring-command-bus-connector/**"))
@@ -179,10 +177,8 @@ public class AuthorizationServerConfig {
                                 "/.well-known/**",
                                 "/favicon.ico",
                                 "/favicon.svg",
-                                "/query-capabilities",
                                 "/command-capabilities",
                                 "/command-transport",
-                                "/spring-query-bus-connector/**",
                                 "/spring-command-bus-connector/**",
                                 "/oauth2/**",
                                 "/login/oauth2/**")
