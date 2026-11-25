@@ -1,3 +1,9 @@
+## [2.5.2](https://github.com/joutio/joutio-identity/compare/v2.5.1...v2.5.2) (2026-11-25)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 3.1.0 with the gRPC bus foundation ([9f940ff](https://github.com/joutio/joutio-identity/commit/9f940ff67012446c5da912440440da8184afd158))
+
 ## [2.5.1](https://github.com/joutio/joutio-identity/compare/v2.5.0...v2.5.1) (2026-11-20)
 
 ### Bug Fixes
