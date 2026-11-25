@@ -84,3 +84,9 @@ app:
   jwk:
     # Dev uniquement : génère une clé éphémère si JOUTIO_IDENTITY_JWK est absent.
     generate-if-missing: true
+
+joutio:
+  axon:
+    grpc:
+      # Port du bus gRPC en local (8124 en prod), aligné sur la découverte de joutio-local.yml.
+      port: 18085
