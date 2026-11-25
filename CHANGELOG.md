@@ -1,3 +1,10 @@
+## [2.5.3](https://github.com/joutio/joutio-identity/compare/v2.5.2...v2.5.3) (2026-11-25)
+
+### Bug Fixes
+
+* **deps:** joutio-parent 3.2.0 with the gRPC query bus ([4e49cf2](https://github.com/joutio/joutio-identity/commit/4e49cf20d1474fa9e558d15316ca55b5f27dc9d3))
+* **security:** drop the HTTP query bus paths ([0d8ad1f](https://github.com/joutio/joutio-identity/commit/0d8ad1f946f6c7064f6faf1db736bbb998344640))
+
 ## [2.5.2](https://github.com/joutio/joutio-identity/compare/v2.5.1...v2.5.2) (2026-11-25)
 
 ### Bug Fixes
