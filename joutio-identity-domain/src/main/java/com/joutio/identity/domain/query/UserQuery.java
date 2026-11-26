@@ -28,4 +28,10 @@ public interface UserQuery {
     record GetUserAccountStatusesQuery(List<String> userIds) implements UserQuery {}
 
     record GetUserEntitlementsQuery(String userId) implements UserQuery {}
+
+    /**
+     * Surveillance de tous les comptes, pour les caches du BFF : aucun résultat initial (liste vide), puis un
+     * {@code UserUpdate} à chaque écriture d'un compte. Les lectures passent par {@link FindUserQuery}.
+     */
+    record WatchUsersQuery() implements UserQuery {}
 }

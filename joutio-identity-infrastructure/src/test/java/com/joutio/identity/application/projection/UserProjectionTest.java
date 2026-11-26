@@ -1,5 +1,9 @@
 package com.joutio.identity.application.projection;
 
+import com.joutio.identity.domain.model.UserUpdate;
+import com.joutio.identity.domain.query.UserQuery;
+import com.joutio.identity.domain.port.out.LiveVersionPort;
+import org.axonframework.queryhandling.QueryUpdateEmitter;
 import com.joutio.identity.domain.event.UserEvent;
 import com.joutio.identity.domain.model.AccountStatus;
 import com.joutio.identity.domain.model.PremiumSource;
@@ -21,6 +25,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,8 +37,10 @@ class UserProjectionTest {
     private final UserRepositoryPort repository = mock(UserRepositoryPort.class);
     private final AccountDeletionCleanupService deletionCleanupService = mock(AccountDeletionCleanupService.class);
     private final AxonEventStoreErasureService eventStoreErasureService = mock(AxonEventStoreErasureService.class);
+    private final LiveVersionPort versions = mock(LiveVersionPort.class);
+    private final QueryUpdateEmitter emitter = mock(QueryUpdateEmitter.class);
     private final UserProjection projection = new UserProjection(
-            repository, deletionCleanupService, eventStoreErasureService);
+            repository, deletionCleanupService, eventStoreErasureService, versions, emitter);
 
     @Test
     void suspension_updatesStatusAndMetadata() {
@@ -48,6 +55,19 @@ class UserProjectionTest {
         assertThat(saved.suspension().suspensionId()).isEqualTo("s1");
         assertThat(saved.suspension().reason()).isEqualTo(UserSuspensionReason.HARASSMENT);
         assertThat(saved.suspension().permanent()).isTrue();
+    }
+
+    @Test
+    void suspension_isEmittedToTheBffCachesWithTheNextVersion() {
+        when(repository.findById("user-1")).thenReturn(Optional.of(activeUser()));
+        when(versions.increment("user-1")).thenReturn(3L);
+
+        projection.on(new UserEvent.UserSuspendedEvent(
+                "user-1", "user@joutio.dev", "s1",
+                UserSuspensionReason.HARASSMENT, "internal", "admin-1", AT, null));
+
+        UserUpdate expected = new UserUpdate("user-1", 3, captureSaved());
+        verify(emitter).emit(eq(UserQuery.WatchUsersQuery.class), any(), eq(expected));
     }
 
     @Test

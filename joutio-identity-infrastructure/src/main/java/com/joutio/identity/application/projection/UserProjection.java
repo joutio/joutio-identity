@@ -8,10 +8,14 @@ import com.joutio.identity.domain.model.SocialProvider;
 import com.joutio.identity.domain.model.User;
 import com.joutio.identity.domain.model.UserPremium;
 import com.joutio.identity.domain.model.UserSuspension;
+import com.joutio.identity.domain.model.UserUpdate;
+import com.joutio.identity.domain.port.out.LiveVersionPort;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
+import com.joutio.identity.domain.query.UserQuery;
 import com.joutio.identity.domain.event.UserEvent.UserAccountDeletedEvent;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
+import org.axonframework.queryhandling.QueryUpdateEmitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -32,13 +36,19 @@ public class UserProjection {
     private final UserRepositoryPort userRepositoryPort;
     private final AccountDeletionCleanupService deletionCleanupService;
     private final AxonEventStoreErasureService eventStoreErasureService;
+    private final LiveVersionPort versions;
+    private final QueryUpdateEmitter emitter;
 
     public UserProjection(UserRepositoryPort userRepositoryPort,
                           AccountDeletionCleanupService deletionCleanupService,
-                          AxonEventStoreErasureService eventStoreErasureService) {
+                          AxonEventStoreErasureService eventStoreErasureService,
+                          LiveVersionPort versions,
+                          QueryUpdateEmitter emitter) {
         this.userRepositoryPort = userRepositoryPort;
         this.deletionCleanupService = deletionCleanupService;
         this.eventStoreErasureService = eventStoreErasureService;
+        this.versions = versions;
+        this.emitter = emitter;
     }
 
     /**
@@ -68,7 +78,7 @@ public class UserProjection {
                 null
         );
 
-        userRepositoryPort.save(user);
+        save(user);
 
         logger.info("User projected: userId={}", event.userId());
     }
@@ -86,7 +96,7 @@ public class UserProjection {
             Set<SocialProvider> linkedAccounts = new HashSet<>(user.linkedSocialAccounts());
             linkedAccounts.add(event.provider());
 
-            userRepositoryPort.save(user.withLinkedSocialAccounts(linkedAccounts));
+            save(user.withLinkedSocialAccounts(linkedAccounts));
 
             logger.info("Social provider linked: userId={}, provider={}", event.userId(), event.provider());
         }, () -> logger.warn("Cannot link social provider: user not projected yet, userId={}", event.userId()));
@@ -110,7 +120,7 @@ public class UserProjection {
                     null,
                     null,
                     null);
-            userRepositoryPort.save(user.withStatus(AccountStatus.SUSPENDED, suspension));
+            save(user.withStatus(AccountStatus.SUSPENDED, suspension));
             logger.info("User suspended: userId={}, until={}", event.userId(), event.suspendedUntil());
         }, () -> logger.warn("Cannot suspend: user not projected yet, userId={}", event.userId()));
     }
@@ -125,7 +135,7 @@ public class UserProjection {
                 existing == null ? null : existing.email(),
                 event.deletionId(),
                 event.deletedAt());
-        userRepositoryPort.save(new User(
+        save(new User(
                 event.userId(),
                 "deleted-" + event.userId() + "@invalid.local",
                 new HashSet<>(),
@@ -159,7 +169,7 @@ public class UserProjection {
                         event.reason(),
                         event.note());
             }
-            userRepositoryPort.save(user.withStatus(AccountStatus.ACTIVE, suspension));
+            save(user.withStatus(AccountStatus.ACTIVE, suspension));
             logger.info("User reinstated: userId={}, reason={}", event.userId(), event.reason());
         }, () -> logger.warn("Cannot reinstate: user not projected yet, userId={}", event.userId()));
     }
@@ -171,7 +181,7 @@ public class UserProjection {
             if (user.status() == AccountStatus.DELETED) {
                 return;
             }
-            userRepositoryPort.save(user.withPremium(new UserPremium(
+            save(user.withPremium(new UserPremium(
                     event.source(), event.premiumUntil(), event.grantedBy(), event.grantedAt())));
             logger.info("Premium granted: userId={}, source={}, until={}",
                     event.userId(), event.source(), event.premiumUntil());
@@ -185,7 +195,7 @@ public class UserProjection {
             if (user.status() == AccountStatus.DELETED) {
                 return;
             }
-            userRepositoryPort.save(user.withPremium(null));
+            save(user.withPremium(null));
             logger.info("Premium revoked: userId={}, source={}", event.userId(), event.source());
         }, () -> logger.warn("Cannot revoke premium: user not projected yet, userId={}", event.userId()));
     }
@@ -197,7 +207,7 @@ public class UserProjection {
             if (user.status() == AccountStatus.DELETED) {
                 return;
             }
-            userRepositoryPort.save(user.withBirthDate(event.birthDate()));
+            save(user.withBirthDate(event.birthDate()));
             // Donnée privée : jamais journalisée.
             logger.info("Birth date set: userId={}", event.userId());
         }, () -> logger.warn("Cannot set birth date: user not projected yet, userId={}", event.userId()));
@@ -211,8 +221,18 @@ public class UserProjection {
             if (user.status() == AccountStatus.DELETED) {
                 return;
             }
-            userRepositoryPort.save(user.withTermsAccepted(event.version(), event.acceptedAt()));
+            save(user.withTermsAccepted(event.version(), event.acceptedAt()));
             logger.info("Terms {} accepted: userId={}", event.version(), event.userId());
         }, () -> logger.warn("Cannot record terms acceptance: user not projected yet, userId={}", event.userId()));
+    }
+
+    /**
+     * Écrit le compte, puis l'émet aux caches du BFF ({@link UserQuery.WatchUsersQuery}) avec sa nouvelle version.
+     * L'émission part au commit de l'unité de travail.
+     */
+    private void save(User user) {
+        userRepositoryPort.save(user);
+        long version = versions.increment(user.userId());
+        emitter.emit(UserQuery.WatchUsersQuery.class, _ -> true, new UserUpdate(user.userId(), version, user));
     }
 }

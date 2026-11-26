@@ -98,6 +98,8 @@ OIDC    /oauth2/{authorize,token,jwks,revoke,introspect}, /.well-known/openid-co
   - `GetUserQuery`, `FindUserQuery`, `FindUserByEmailQuery`, `GetUsersByIdsQuery` ;
   - `GetUserAccountStatus(es)Query`, `GetUserEntitlementsQuery` ;
   - `UserSearchQuery`, avec les filtres admin `status` (suspension effective) et `reported` ;
+  - `WatchUsersQuery` : surveillance pour les caches du BFF, `UserUpdate` émis par `UserProjection` à chaque écriture
+    du compte (version `live_version`, V2 ; [axon](../../docs/backend/axon.md#vues-surveillées-caches-du-bff)) ;
   - `UserReportQuery.*`.
 
 ## Multi-instance

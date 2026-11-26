@@ -3,6 +3,7 @@ package com.joutio.identity.application.handler.query;
 import com.joutio.microservice.core.infrastructure.in.api.response.SearchResponse;
 import com.joutio.identity.domain.exception.UserProblems;
 import com.joutio.identity.domain.model.User;
+import com.joutio.identity.domain.model.UserUpdate;
 import com.joutio.identity.domain.model.UserAccountStatus;
 import com.joutio.identity.domain.port.out.UserRepositoryPort;
 import com.joutio.identity.domain.query.UserQuery;
@@ -45,6 +46,12 @@ public class UserQueryHandler {
     public User handle(UserQuery.GetUserQuery query) {
         return userReadPort.findById(query.userId())
                 .orElseThrow(() -> new UserProblems.UserNotFoundProblem(query.userId()));
+    }
+
+    /** Surveillance pour les caches du BFF : aucun résultat initial, les updates viennent de {@code UserProjection}. */
+    @QueryHandler
+    public List<UserUpdate> handle(UserQuery.WatchUsersQuery query) {
+        return List.of();
     }
 
     @QueryHandler
