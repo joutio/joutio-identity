@@ -1,3 +1,9 @@
+## [2.6.0](https://github.com/joutio/joutio-identity/compare/v2.5.3...v2.6.0) (2026-11-26)
+
+### Features
+
+* **live:** watch query feeding the BFF caches ([b3e0644](https://github.com/joutio/joutio-identity/commit/b3e064436197490eca7e685db0cf9c97cccf1d91))
+
 ## [2.5.3](https://github.com/joutio/joutio-identity/compare/v2.5.2...v2.5.3) (2026-11-25)
 
 ### Bug Fixes
